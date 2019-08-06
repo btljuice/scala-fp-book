@@ -1,4 +1,4 @@
-package scalafpbook
+package sfpbook
 
 import org.scalatest._
 
