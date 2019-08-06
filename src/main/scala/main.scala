@@ -1,4 +1,4 @@
-package example
+package scalafpbook
 
 object Hello extends Greeting with App {
 
