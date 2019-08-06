@@ -1,104 +1,38 @@
 package sfpbook
 
-object Hello extends Greeting with App {
+object ch2 {
+  object ex1 {
+    // ex. 2.1
+    def fib(n: Int): Int = n match {
+      case 0 => 0
+      case 1 => 1
+      case _ => fib(n-1) + fib(n-2)
+    }
 
-  def mixinExample() {
-    abstract class A {
-      val message: String
-    }
-    class B extends A {
-      val message = "I'm an instance of class B"
-    }
-    trait C extends A {
-      def loudMessage = message.toUpperCase()
-    }
-    class D extends B with C
-
-    val d = new D
-    println(d.message)  // I'm an instance of class B
-    println(d.loudMessage)  // I'M AN INSTANCE OF CLASS B
-  }
-
-  def richIteratorExample() {
-    abstract class AbsIterator {
-      type T
-      def hasNext: Boolean
-      def next(): T
-    }
-    class StringIterator(s: String) extends AbsIterator {
-      type T = Char
-      private var i = 0
-      def hasNext = i < s.length
-      def next() = {
-        val ch = s charAt i
-        i += 1
-        ch
+    def fibtail(n: Int): Int = {
+      @annotation.tailrec
+      def fib(n: Int, i: Int, f1: Int, f2: Int): Int = {
+        require(0 <= i && i <= n)
+        if (n <= i) f2
+        else fib(n, i+1, f2, f1+f2)
       }
-    }
-    trait RichIterator extends AbsIterator {
-      def foreach(f: T => Unit): Unit = while (hasNext) f(next())
-    }
-    class RichStringIter extends StringIterator("Scala") with RichIterator
-    val richStringIter = new RichStringIter
-    richStringIter foreach println
-  }
-
-  def caseClass() {
-    case class Book(isbn: String)
-    val frankenstein = Book("978-0486282114")
-  }
-
-  def listOfAnyObjects() {
-    val list: List[Any] = List(
-      "a string",
-      732,  // an integer
-      'c',  // a character
-      true, // a boolean value
-      () => "an anonymous function returning a string"
-    )
-    list.foreach(element => println(element))
-  }
-
-  def NodeExample() {
-    trait Node[+B] {
-      def prepend[A >: B](elem: A): Node[A]
-    }
-
-    case class ListNode[+B](h: B, t: Node[B]) extends Node[B] {
-      def prepend[A >: B](elem: A): ListNode[A] = ListNode(elem, this)
-      def head: B = h
-      def tail: Node[B] = t
-    }
-
-    case class Nil[+B]() extends Node[B] {
-      def prepend[A >: B](elem: A): ListNode[A] = ListNode(elem, this)
-    }
-
-    class S;
-    class T extends S;
-
-
-    var l : Node[T] = Nil[T]()
-    var l1 : Node[S] = l.prepend(new S)
-  }
-
-  class ContainsObject(val aValue: String) {
-    object AObject {
-      val value = aValue
+      if (n <= 0) 0 else fib(n, 1, 0, 1)
     }
   }
 
-  def classContainsObjectExample() {
-    val a = new ContainsObject("a")
-    val b = new ContainsObject("b")
-
-    println(s"a.AObject.value = ${a.AObject.value}")
-    println(s"b.AObject.value = ${b.AObject.value}")
+  object ex2 {
+    def isSorted[A](as: Array[A])(ordered: (A,A) => Boolean) : Boolean = {
+      (as.length <= 1) || ordered(as(0), as(1)) && isSorted(as.tail)(ordered)
+    }
   }
 
-  println(greeting)
-}
-
-trait Greeting {
-  lazy val greeting: String = "hello"
+  object ex3 {
+    def curry[A,B,C](f: (A,B) => C): A => (B => C) = a => b => f(a,b)
+  }
+  object ex4 {
+    def uncurry[A,B,C](f: A => B => C): (A,B) => C = (a,b) => f(a)(b)
+  }
+  object ex5 {
+    def compose[A,B,C](f: B => C, g: A => B): A => C = a => f(g(a))
+  }
 }
