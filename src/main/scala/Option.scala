@@ -10,7 +10,7 @@ sealed trait Option[+A] {
   def filter(f: A => Boolean): Option[A]
 }
 final object None extends Option[Nothing] {
-  override def get = throw NoSuchFieldException
+  override def get = sys.error("None.get has no value")
   def isEmpty = true
   override def map[B](f: Nothing => B) = None
   override def flatMap[B](f: Nothing => Option[B]) = None
@@ -31,7 +31,7 @@ object Option {
   def sequence[A](l: List[Option[A]]): Option[List[A]] = traverse(l)(identity)
   def traverse[A,B](l: List[A])(f: A => Option[B]): Option[List[B]] = l match {
     case Nil => Some(Nil)
-    case head :: tail =>
+    case Cons(head, tail) =>
       for {
         bHead <- f(head)
         bTail <- traverse(tail)(f)
