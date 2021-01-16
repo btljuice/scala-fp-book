@@ -1,6 +1,7 @@
 package sfpbook
 
 import org.scalatest._
+import scala.annotation.tailrec
 
 class Ch3Spec extends FlatSpec with Matchers {
   lazy val l = List(1, 2, 3, 4, 5)
@@ -56,13 +57,17 @@ class Ch3Spec extends FlatSpec with Matchers {
     l.exists(_ == 3) shouldEqual true
   }
   "ch3.24" should "hasSubsequence correctly" in {
-    def hasSubSequence[T](l: List[T], sub: List[T]): Boolean = (l, sub) match {
+    @tailrec def startsWith[T](l: List[T], sub: List[T]): Boolean = (l, sub) match {
       case (_, Nil) => true
       case (Nil, _) => false
-      case (Cons(h1, t1), Cons(h2, t2)) if h1 == h2 => hasSubSequence(t1, t2) || hasSubSequence(t1, sub)
-      case (Cons(_, t1), _) => hasSubSequence(t1, sub)
+      case (Cons(h1, t1), Cons(h2, t2)) => h1 == h2 && startsWith(t1, t2)
+    }
+    def hasSubSequence[T](l: List[T], sub: List[T]): Boolean = l match {
+      case Nil => sub.isEmpty
+      case Cons(_, t1) => startsWith(l, sub) || startsWith(t1, sub)
     }
 
+    hasSubSequence(List(1, 2, 3, 4), List(2, 4)) shouldEqual false
     hasSubSequence(List(1, 2, 3, 4), List(2, 3, 5)) shouldEqual false
     hasSubSequence(List(2, 2, 3, 4), List(2, 3)) shouldEqual true
   }
