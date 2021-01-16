@@ -12,13 +12,11 @@ object Ch2 {
     }
 
     def fibtail(n: Int): Int = {
-      @annotation.tailrec
-      def fib(n: Int, i: Int, f1: Int, f2: Int): Int = {
+      @tailrec def fib(i: Int, f1: Int, f2: Int): Int = {
         require(0 <= i && i <= n)
-        if (n <= i) f2
-        else fib(n, i + 1, f2, f1 + f2)
+        if (i == n) f2 else fib(i + 1, f2, f1 + f2)
       }
-      if (n <= 0) 0 else fib(n, 1, 0, 1)
+      if (n <= 0) 0 else fib(1, 0, 1)
     }
   }
 
@@ -29,7 +27,7 @@ object Ch2 {
   }
 
   object ex3 {
-    def curry[A, B, C](f: (A, B) => C): A => (B => C) = a => b => f(a, b)
+    def curry[A, B, C](f: (A, B) => C): A => B => C = a => b => f(a, b)
   }
   object ex4 {
     def uncurry[A, B, C](f: A => B => C): (A, B) => C = (a, b) => f(a)(b)
