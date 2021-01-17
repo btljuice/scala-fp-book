@@ -11,7 +11,7 @@ class Ch3Spec extends FlatSpec with Matchers {
     l.foldRight(0)(_ * _) shouldEqual 0
   }
   "ch3.8" should "l.foldRight(Nil)(Cons) should be equivalent to identity" in {
-    val result = l.foldRight[List[Int]](Nil)((x, i) => Cons(i, x))
+    val result = l.foldRight(List.empty[Int])((i, x) => Cons(i, x))
     result shouldEqual l
   }
   "ch3.9" should "l.length == 5" in {
