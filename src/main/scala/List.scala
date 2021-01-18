@@ -25,13 +25,19 @@ sealed trait List[+T] {
     case Cons(h, t) if p(h) => t.dropWhile(p)
     case l => l
   }
-  final def take(n: Int): List[T] = this match {
-    case Cons(h, t) if n > 0 => Cons(h, t.take(n - 1))
-    case _ => Nil
+  final def take(n: Int): List[T] = {
+    @tailrec def takeImpl(n: Int, l: List[T], acc: List[T]): List[T] = l match {
+      case Cons(h, t) if n > 0 => takeImpl(n - 1, t, h :: acc)
+      case _ => acc.reverse
+    }
+    takeImpl(n, this, Nil)
   }
-  final def takeWhile(p: T => Boolean): List[T] = this match {
-    case Cons(h, t) if p(h) => Cons(h, t.takeWhile(p))
-    case _ => Nil
+  final def takeWhile(p: T => Boolean): List[T] = {
+    @tailrec def takeWhileImpl(l: List[T], acc: List[T]): List[T] = l match {
+      case Cons(h, t) if p(h) => takeWhileImpl(t, h :: acc)
+      case _ => acc.reverse
+    }
+    takeWhileImpl(this, Nil)
   }
 
   final def ::[A >: T](prefix: A): List[A] = Cons(prefix, this)
@@ -47,10 +53,14 @@ sealed trait List[+T] {
   final def map[A](f: T => A): List[A] = foldRight(List.empty[A]){ (t, l) => Cons(f(t), l) }
   final def filter(f: T => Boolean): List[T] = flatMap { t => if (f(t)) Cons(t, Nil) else Nil }
   final def flatMap[A](f: T => List[A]): List[A] = foldRight(List.empty[A]){ (t, l) => f(t) ::: l }
-  final def zipWith[A, B](l: List[A])(f: (T, A) => B): List[B] = (this, l) match {
-    case (Cons(h1, t1), Cons(h2, t2)) => Cons(f(h1, h2), t1.zipWith(t2)(f))
-    case (_, Nil) | (Nil, _) => Nil
+  final def zipWith[A, B](l: List[A])(f: (T, A) => B): List[B] = {
+    @tailrec def impl(l1: List[T], l2: List[A], acc: List[B]): List[B] = (l1, l2) match {
+      case (Cons(h1, t1), Cons(h2, t2)) => impl(t1, t2, f(h1, h2) :: acc)
+      case (_, Nil) | (Nil, _) => acc.reverse
+    }
+    impl(this, l, Nil)
   }
+  final def zip[A](l: List[A]): List[(T, A)] = zipWith(l)(_ -> _)
 }
 
 case object Nil extends List[Nothing] { override def tail = Nil }
