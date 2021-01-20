@@ -3,13 +3,28 @@ import org.scalatest._
 
 class Ch5Spec extends FlatSpec with Matchers {
   def integers(n: Int): Stream[Int] = Stream.cons(n, integers(n + 1))
-  "Ch5.5" should "takeWhile" in {
+  "Ch5.2" should "take" in {
+    integers(0).take(5).toList shouldEqual List(0, 1, 2, 3, 4)
+  }
+  "Ch5.3" should "takeWhile" in {
     integers(0).takeWhile(_ < 5).toList shouldEqual List(0, 1, 2, 3, 4)
     Stream.empty[Int].takeWhile(_ => true) shouldEqual Stream.empty[Int]
+  }
+  "Ch5.4" should "forall" in {
+    Stream(0, 1, 2, 3, 4, 5).forall(_ <= 4) shouldEqual false
+    Stream(0, 1, 2, 3, 4, 5).exists(_ > 4) shouldEqual true
   }
   "Ch5.6" should "headOption" in {
     integers(0).headOption shouldEqual Some(0)
     Stream.empty[Int].headOption shouldEqual None
+  }
+  "Ch5.7" should "map, filter, flatMap, foldRight" in {
+    val s = integers(0).take(5)
+    s.map(_ + 1)
+      .filter(_ % 2 == 0)
+      .flatMap(n => Stream(n, n*2))
+      .foldRight(0)(_ + _) shouldEqual 2 + 4 + 4 + 8
+
   }
   "Ch5.8" should "infinite streams" in {
     Stream.ones.map(_+ 1).exists(_ % 2 == 0) shouldEqual true
@@ -31,9 +46,9 @@ class Ch5Spec extends FlatSpec with Matchers {
   }
   "Ch5.16" should "hasSubsequence" in {
     val s = Stream(1, 2, 3, 4, 5)
-    s.hasSubSequence(Stream(2, 4)) shouldEqual false
-    s.hasSubSequence(Stream(2, 3, 5)) shouldEqual false
-    Stream(2, 2, 3, 4).hasSubSequence(Stream(2,3)) shouldEqual true
+    s.hasSubsequence(Stream(2, 4)) shouldEqual false
+    s.hasSubsequence(Stream(2, 3, 5)) shouldEqual false
+    Stream(2, 2, 3, 4).hasSubsequence(Stream(2,3)) shouldEqual true
   }
   "Ch5.18" should "scanLeft" in {
     val s = Stream(1, 2, 3, 4, 5)
