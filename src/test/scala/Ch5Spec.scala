@@ -1,7 +1,9 @@
 package sfpbook
-import org.scalatest._
 
-class Ch5Spec extends FlatSpec with Matchers {
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+class Ch5Spec extends AnyFlatSpec with Matchers {
   def integers(n: Int): Stream[Int] = Stream.cons(n, integers(n + 1))
   "Ch5.2" should "take" in {
     integers(0).take(5).toList shouldEqual List(0, 1, 2, 3, 4)

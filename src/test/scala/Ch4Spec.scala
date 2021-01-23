@@ -2,9 +2,10 @@ package sfpbook
 
 //import sfpbook.{Option => FPOption}
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class Ch4Spec extends FlatSpec with Matchers {
+class Ch4Spec extends AnyFlatSpec with Matchers {
   "Ch4.1" should "Option correctly" in {
     None.isEmpty shouldEqual true
     an[RuntimeException] should be thrownBy None.get

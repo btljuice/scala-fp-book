@@ -1,9 +1,10 @@
 package sfpbook
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import scala.annotation.tailrec
 
-class Ch3Spec extends FlatSpec with Matchers {
+class Ch3Spec extends AnyFlatSpec with Matchers {
   lazy val l = List(1, 2, 3, 4, 5)
   lazy val l1 = List(6, 7, 8, 9, 10)
   "ch3.7" should "Compute product correctly" in {

@@ -1,8 +1,9 @@
 package sfpbook
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class Ch2Spec extends FlatSpec with Matchers {
+class Ch2Spec extends AnyFlatSpec with Matchers {
   "ch2.ex1.fibtail()" should "give the fibonacci numbers" in {
     Ch2.ex1.fibtail(0) shouldEqual 0
     Ch2.ex1.fibtail(1) shouldEqual 1
