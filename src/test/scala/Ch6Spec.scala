@@ -54,4 +54,13 @@ class Ch6Spec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
       Rand.int.map2(Rand.int)(_ + _)(gen) shouldEqual aPlusB
     }
   }
+  "Ch6.9" should "range" in {
+    forAll { (s: Int, n: Int) =>
+      (n >= 0) ==> {
+        val gen = SimpleRNG(s)
+        val r = Rand.range(n)(gen)._1
+        0 <= r && r < n
+      }
+    }
+  }
 }

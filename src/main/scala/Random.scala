@@ -2,7 +2,6 @@ package sfpbook
 
 import scala.annotation.tailrec
 
-
 trait RNG { def next: (Int, RNG) }
 
 case class SimpleRNG(seed: Long) extends RNG {
@@ -16,20 +15,22 @@ case class SimpleRNG(seed: Long) extends RNG {
 object RNG {
   type Rand[+A] = RNG => (A, RNG)
   implicit class RichRand[A](r: Rand[A]) {
-    def map[B](f: A => B): Rand[B] = rng => { // Ch 6.5
-      val (a, rng1) = r(rng)
-      (f(a), rng1)
-    }
+    def map[B](f: A => B): Rand[B] = flatMap { a => Rand.value(f(a)) }
     def flatMap[B](f: A => Rand[B]): Rand[B] = rng => {
-      val (b, rng1) = r.map(f)(rng)
-      b(rng1)
+      val (a, rng1) = r(rng)
+      f(a)(rng1)
     }
     def map2[B, C](rb: => Rand[B])(f: (A, B) => C): Rand[C] = for { a <- r ; b <- rb } yield { f(a, b) }
   }
   object Rand {
     val int: Rand[Int] = _.next
-    val nonNegativeInt: Rand[Int] = Rand.int.map { i => if (i == Int.MinValue) 0 else i.abs } // Ch 6.1
+    val nonNegativeInt: Rand[Int] = int.map { i => if (i == Int.MinValue) 0 else i.abs } // Ch 6.1
     val double: Rand[Double] = nonNegativeInt.map { i => i.toDouble/(Int.MaxValue.toDouble+1.0) } // Ch 6.2
+    def range(n: Int): Rand[Int] = nonNegativeInt.flatMap { i =>
+      val mod = i % n
+      if (i-mod + n-1 >= 0) value(mod) else range(n)
+    }
+
     def value[A](a: => A): Rand[A] = rng => (a, rng)
     def both[A, B](a: Rand[A], b: Rand[B]): Rand[(A, B)] = a.map2(b)((_, _))
     def sequence[A](s: List[Rand[A]]): Rand[List[A]] = s match {
