@@ -25,6 +25,10 @@ sealed trait List[+T] {
     case Cons(h, t) if p(h) => t.dropWhile(p)
     case l => l
   }
+  final def headOption: Option[T] = this match {
+    case Nil => None
+    case Cons(h, _) => Some(h)
+  }
   final def take(n: Int): List[T] = {
     @tailrec def takeImpl(n: Int, l: List[T], acc: List[T]): List[T] = l match {
       case Cons(h, t) if n > 0 => takeImpl(n - 1, t, h :: acc)

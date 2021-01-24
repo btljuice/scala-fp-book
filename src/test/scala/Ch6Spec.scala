@@ -69,14 +69,6 @@ class Ch6Spec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
     sealed trait Input
     case object Coin extends Input
     case object Turn extends Input
-    case class Machine(locked: Boolean, candies: Int, coins: Int) {
-      def coin: Machine =
-        if (locked && candies > 0) Machine(locked = false, candies, coins)
-        else this
-      def turn: Machine =
-        if (!locked) Machine(locked = true, candies - 1, coins + 1)
-        else this
-    }
 
     // Rules
     // 1. Insert a coin into lock machine if candy left -> Unlock
@@ -84,11 +76,20 @@ class Ch6Spec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
     // 3. Turn knob on lock machine -> Nothing
     // 4. insert coin into unlock machine -> Nothing
     // 5. Machine w/o candy ignores all input
-    def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] =
-      State[Machine, (Int, Int)] { m =>
-        val m2 = inputs.foldLeft(m) { case (m, Coin) => m.coin; case (m, Turn) => m.turn }
-        (m2, (m2.candies, m2.coins))
-      }
+    case class Machine(locked: Boolean, candies: Int, coins: Int)
+
+
+    def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = {
+      def update(i: Input): Machine => Machine = { m: Machine => (i, m) match {
+        case (Coin, Machine(true, a, o)) if a > 0 => Machine(false, a, o)
+        case (Turn, Machine(false, a, o)) => Machine(true, a - 1, o + 1)
+        case (_, m) => m
+      } }
+      State.sequence(
+        inputs.map(update _ andThen State.modify)
+      ).flatMap(_ => State.get[Machine])
+        .map(m => (m.candies, m.coins))
+    }
 
     val startMachine = Machine(true, 5, 10)
     val actions = List(Turn, Turn, Coin, Turn, Turn, Coin, Turn, Coin, Turn, Coin, Turn)
