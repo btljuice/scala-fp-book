@@ -62,4 +62,36 @@ class Ch6Spec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
       }
     }
   }
+
+  "Ch6.11" should "coin exercise" in {
+    // Insert coin; turn knob
+    // state lock vs unlock
+    sealed trait Input
+    case object Coin extends Input
+    case object Turn extends Input
+    case class Machine(locked: Boolean, candies: Int, coins: Int) {
+      def coin: Machine =
+        if (locked && candies > 0) Machine(locked = false, candies, coins)
+        else this
+      def turn: Machine =
+        if (!locked) Machine(locked = true, candies - 1, coins + 1)
+        else this
+    }
+
+    // Rules
+    // 1. Insert a coin into lock machine if candy left -> Unlock
+    // 2. Turn knob on unlock machine -> dispenses a candy; Lock Machine
+    // 3. Turn knob on lock machine -> Nothing
+    // 4. insert coin into unlock machine -> Nothing
+    // 5. Machine w/o candy ignores all input
+    def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] =
+      State[Machine, (Int, Int)] { m =>
+        val m2 = inputs.foldLeft(m) { case (m, Coin) => m.coin; case (m, Turn) => m.turn }
+        (m2, (m2.candies, m2.coins))
+      }
+
+    val startMachine = Machine(true, 5, 10)
+    val actions = List(Turn, Turn, Coin, Turn, Turn, Coin, Turn, Coin, Turn, Coin, Turn)
+    simulateMachine(actions)(startMachine) shouldEqual (Machine(true, 1, 14), (1, 14))
+  }
 }
