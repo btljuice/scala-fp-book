@@ -69,4 +69,10 @@ final case class Cons[+T](head: T, tail: List[T]) extends List[T]
 object List {
   def apply[A](as: A*): List[A] = if (as.isEmpty) Nil else Cons(as.head, apply(as.tail: _*))
   def empty[A]: List[A] = Nil
+  def fill[A](n: Int)(a: => A): List[A] = {
+    @tailrec def impl(n: Int, acc: List[A]): List[A] = {
+      if (n <= 0) Nil else impl(n-1, a :: acc)
+    }
+    impl(n, Nil)
+  }
 }
