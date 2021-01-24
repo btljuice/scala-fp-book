@@ -1,18 +1,17 @@
 package sfpbook
 
-import scala.annotation.tailrec
-
-trait RNG { def next: (RNG, Int) }
-
-case class SimpleRNG(seed: Long) extends RNG {
-  override def next = {
-    val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
-    val nextRNG =  SimpleRNG(newSeed)
-    val n = (newSeed >>> 16).toInt
-    (nextRNG, n)
-  }
-}
 object Random {
+  trait RNG { def next: (RNG, Int) }
+
+  case class SimpleRNG(seed: Long) extends RNG {
+    override def next = {
+      val newSeed = (seed * 0x5DEECE66DL + 0xBL) & 0xFFFFFFFFFFFFL
+      val nextRNG =  SimpleRNG(newSeed)
+      val n = (newSeed >>> 16).toInt
+      (nextRNG, n)
+    }
+  }
+
   type Rand[A] = State[RNG, A]
 
   val int: Rand[Int] = State[RNG, Int](_.next)
