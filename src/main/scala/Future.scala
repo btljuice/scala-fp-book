@@ -48,32 +48,52 @@ import scala.concurrent.duration.TimeUnit
 //    - This will be our goal
 
 object Par {
-  abstract class ExecutorService {
-    def submit[A](a: Callable[A]): Future[A]
-  }
+  abstract class ExecutorService { def submit[A](a: Callable[A]): Future[A] }
   trait Callable[A] { def call: A }
   trait Future[A] {
-    def get: A
+    def get: A // Blocks until computation is completed
     def get(timeout: Long, unit: TimeUnit): A
     def cancel(evenIfRunning: Boolean): Boolean
     def isDone: Boolean
     def isCancelled: Boolean
   }
+  private case class UnitFuture[A](get: A) extends Future[A] {
+    override def get(timeout: Long, unit: TimeUnit): A = get
+    override def cancel(evenIfRunning: Boolean): Boolean = false
+    override def isDone: Boolean = true
+    override def isCancelled: Boolean = false
+  }
 
   type Par[A] = ExecutorService => Future[A]
-  def unit[A](a: A): Par[A] = ??? // promotes a constant value to parallel computation
-  /*
-   * - if fork start the computation immediately, then it must know strategy to execution this computation
-   *   and have access to the related resource to fullfill the strategy.
-   *   (ex. user thread, dedicated thread pool, another process, etc.)
-   * - if fork defers the computation to get, then it can be agnostic about the strategy and the resource.
+  implicit class RichPar[A](pa: Par[A]) {
+    def run(implicit s: ExecutorService): A = pa(s).get // Evaluates the parallel computation and wait until A is received
+    def map[B](f: A => B): Par[B] = map2(unit(())) { (a, _) => f(a) }
+    def map2[B, C](pb: Par[B], maybeTimeout: Option[(Long, TimeUnit)] = None)(f: (A, B) => C): Par[C] = es => { // Combines 2 parallel computation together
+      val fa = pa(es); val fb = pb(es)
+      maybeTimeout
+        .map { case (t, u) => UnitFuture(f(fa.get(t, u), fb.get(t, u))) }
+        .getOrElse { UnitFuture(f(fa.get, fb.get)) }
+    }
+  }
+
+  def unit[A](a: A): Par[A] = _ => UnitFuture(a) // promotes a constant value to parallel computation
+  /**
+   *  Marks a computation for concurrent evaluation
+   * @note
+   *       - if fork start the computation immediately, then it must know strategy to execution this computation
+   *         and have access to the related resource to fullfill the strategy.
+   *         (ex. user thread, dedicated thread pool, another process, etc.)
+   *       - if fork defers the computation to get, then it can be agnostic about the strategy and the resource.
    */
-  def fork[A](a: => Par[A]): Par[A] = ??? // Marks a computation for concurrent evaluation
+  def fork[A](pa: => Par[A]): Par[A] = es => es.submit(new Callable[A] { def call = pa.run(es) })
   def lazyUnit[A](a: => A): Par[A] = fork(unit(a)) // Derived from the former 2. Composability gives choice to the library user
+  def asyncF[A,B](f: A => B): A => Par[B] = a => lazyUnit(f(a))
+  def sequence[A](ps: List[Par[A]]): Par[List[A]] = ps match {
+    case Nil => unit(Nil)
+    case Cons(pa, pt) => pa.map2(sequence(pt)) { Cons(_, _) }
+  }
 
-  def run[A](p: Par[A])(implicit s: ExecutorService): A = ???  // Evaluates the parallel computation and wait until A is received
-
-  def map2[A,B,C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] // Combines 2 parallel computation together
+  def parMap[A, B](ps: List[A])(f: A => B): Par[List[B]] = sequence(ps.map(asyncF(f)))
 
 
   private object Design {
