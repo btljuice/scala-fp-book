@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch4
 
 //import sfpbook.{Option => FPOption}
 

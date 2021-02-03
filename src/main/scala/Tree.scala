@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch3
 
 import scala.collection.AbstractSeq
 

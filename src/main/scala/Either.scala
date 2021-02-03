@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch4
 
 sealed trait Either[+L, +R] {
   def map[A](f: R => A): Either[L, A]
@@ -28,6 +28,6 @@ object Either {
   def sequence[L, R](es: List[Either[L, R]]): Either[L, List[R]] = traverse(es)(Right(_))
   def traverse[L, R, A](es: List[Either[L, R]])(f: R => Either[L, A]): Either[L, List[A]] = es match {
     case Nil => Right(Nil)
-    case Cons(head, tail) => for { h <- head; a <- f(h); t <- traverse(tail)(f) } yield { Cons(a, t) }
+    case head :: tail => for { h <- head; a <- f(h); t <- traverse(tail)(f) } yield { a :: t }
   }
 }

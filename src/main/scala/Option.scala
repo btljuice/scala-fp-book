@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch4
 
 sealed trait Option[+A] {
   def get: A
@@ -31,7 +31,7 @@ object Option {
   def sequence[A](l: List[Option[A]]): Option[List[A]] = traverse(l)(identity)
   def traverse[A,B](l: List[A])(f: A => Option[B]): Option[List[B]] = l match {
     case Nil => Some(Nil)
-    case Cons(head, tail) =>
+    case head :: tail =>
       for {
         bHead <- f(head)
         bTail <- traverse(tail)(f)

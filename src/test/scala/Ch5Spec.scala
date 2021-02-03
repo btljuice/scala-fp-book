@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch5
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch6
 
 import org.scalacheck.Prop.propBoolean
 import org.scalatest.flatspec.AnyFlatSpec

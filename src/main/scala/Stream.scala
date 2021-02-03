@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch5
 
 import scala.annotation.tailrec
 

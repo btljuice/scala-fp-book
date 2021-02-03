@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch6
 
 object Random {
   trait RNG { def next: (RNG, Int) }
