@@ -53,9 +53,15 @@ import scala.util.Try
 //    - This will be our goal
 
 object Par {
+  // Mock of an Actor
+  private case class Actor[A](es: ExecutorService) {
+    def `!`(a: => A): Unit  = ???
+    def apply(f: A => Unit): Actor[A] = ???
+  }
+
   private trait Callable[A] { def call: A }
   abstract class ExecutorService { def submit[A](a: Callable[A]): Future[A] }
-  sealed trait Future[A] { private[Par] def apply(k: A => Unit): Unit }
+  sealed trait Future[A] { private[Par] def apply(k: Try[A] => Unit): Unit }
 
   private def eval(es: ExecutorService)(r: => Unit): Unit = es.submit(new Callable[Unit] { def call = r })
   private def future[A](f: (Try[A] => Unit) => Unit): Future[A] = new Future[A] { override def apply(cb: Try[A] => Unit): Unit = f(cb) }
@@ -63,35 +69,25 @@ object Par {
   type Par[A] = ExecutorService => Future[A]
 
   def unit[A](a: A): Par[A] = _ => future { _(Try(a)) }
-  def fork[A](pa: => Par[A]): Par[A] = es => future { cb => eval(es){
-    Try {
-      pa(es)(cb)
-    } match {
-      case f: Failure[A] => cb(f)
-      case _: Success[A] => ()
-    } } }
+  def fork[A](pa: => Par[A]): Par[A] = es => future { cb => eval(es){ pa(es)(cb)} }
   def delay[A](pa: => Par[A]): Par[A] = es => pa(es)
 
   implicit class RichPar[A](pa: Par[A]) {
-    def run(implicit es: ExecutorService): A = {
-      val ref = new AtomicReference[A]
+    def run(implicit es: ExecutorService): Try[A] = {
+      val ref = new AtomicReference[Try[A]]
       val latch = new CountDownLatch(1)
       pa(es) { a => ref.set(a); latch.countDown() }
       latch.await()
       ref.get
     }
     def map2[B, C](pb: Par[B])(f: (A, B) => C): Par[C] = es => future { cb =>
-      var ar: Option[Try[A]] = None
-      var br: Option[Try[B]] = None
-      val combiner = Actor[Either[Try[A],Try[B]]](es) {
-        case Left(a) => br match {
-          case None => ar = Some(a)
-          case Some(b) => eval(es)(cb(f(a, b)))
-        }
-        case Right(b) => ar match {
-          case None => br = Some(b)
-          case Some(a) => eval(es)(cb(f(a, b)))
-        }
+      var ar: Option[A] = None
+      var br: Option[B] = None
+      val combiner = Actor[Either[Try[A], Try[B]]](es).apply {
+        case Left(Success(a)) => br.fold { ar = Some(a) }{ b => eval(es)( cb(Try{f(a, b)})) }
+        case Left(Failure(t)) => cb(Failure(t))
+        case Right(Success(b)) => ar.fold { br = Some(b) }{ a => eval(es)(cb(Try{f(a, b)})) }
+        case Right(Failure(t)) => cb(Failure(t))
       }
       pa(es)(a => combiner ! Left(a))
       pb(es)(b => combiner ! Right(b))
@@ -132,8 +128,6 @@ object Par {
   //
   // Law of forking
   // fork(x) == x   // Forking should alter the result of the computation, but simply calculate it asynchronously
-}
-
 
   private object Design {
     /* Library choice:
@@ -153,10 +147,11 @@ object Par {
     def sum1[T](ss: IndexedSeq[T])(implicit n: Numeric[T]): T = {
       if (ss.size <= 1) ss.headOption getOrElse n.zero
       else {
+        implicit val es: ExecutorService = ???
         val (l, r) = ss.splitAt(ss.size / 2)
         val sumL = Par.unit(sum1(l))
         val sumR = Par.unit(sum1(r))
-        n.plus(Par.get(sumL), Par.get(sumR))
+        n.plus(sumL.run.get, sumR.run.get)
       }
     }
 
@@ -181,7 +176,7 @@ object Par {
       if (ss.size <= 1) Par.unit(ss.headOption getOrElse n.zero)
       else {
         val (l, r) = ss.splitAt(ss.size / 2)
-        Par.map2(sum2(l), sum2(r))(n.plus)
+        sum2(l).map2(sum2(r))(n.plus)
       }
     }
 
@@ -193,7 +188,7 @@ object Par {
       if (ss.size <= 1) Par.unit(ss.headOption getOrElse n.zero)
       else {
         val (l, r) = ss.splitAt(ss.size / 2)
-        map2(fork(sum3(l)), fork(sum3(r)))(n.plus)
+        fork(sum3(l)).map2(fork(sum3(r)))(n.plus)
       }
     }
   }
