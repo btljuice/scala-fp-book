@@ -1,5 +1,7 @@
 package sfpbook.ch7
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.immutable
 import scala.collection.immutable.PagedSeq
 import scala.collection.mutable
@@ -48,44 +50,47 @@ import scala.concurrent.duration.TimeUnit
 //    - This will be our goal
 
 object Par {
+  private trait Callable[A] { def call: A }
   abstract class ExecutorService { def submit[A](a: Callable[A]): Future[A] }
-  trait Callable[A] { def call: A }
-  trait Future[A] {
-    def get: A // Blocks until computation is completed
-    def get(timeout: Long, unit: TimeUnit): A
-    def cancel(evenIfRunning: Boolean): Boolean
-    def isDone: Boolean
-    def isCancelled: Boolean
-  }
-  private case class UnitFuture[A](get: A) extends Future[A] {
-    override def get(timeout: Long, unit: TimeUnit): A = get
-    override def cancel(evenIfRunning: Boolean): Boolean = false
-    override def isDone: Boolean = true
-    override def isCancelled: Boolean = false
-  }
+  sealed trait Future[A] { private[Par] def apply(k: A => Unit): Unit }
+
+  private def eval(es: ExecutorService)(r: => Unit): Unit = es.submit(new Callable[Unit] { def call = r })
+  private def future[A](f: (A => Unit) => Unit): Future[A] = new Future[A] { override def apply(cb: A => Unit): Unit = f(cb) }
 
   type Par[A] = ExecutorService => Future[A]
+
+  def unit[A](a: A): Par[A] = _ => future { _(a) }
+  def fork[A](pa: => Par[A]): Par[A] = es => future { cb => eval(es){ pa(es)(cb) } }
+  def delay[A](pa: => Par[A]): Par[A] = pa
+
   implicit class RichPar[A](pa: Par[A]) {
-    def run(implicit s: ExecutorService): A = pa(s).get // Evaluates the parallel computation and wait until A is received
-    def map[B](f: A => B): Par[B] = map2(unit(())) { (a, _) => f(a) }
-    def map2[B, C](pb: Par[B], maybeTimeout: Option[(Long, TimeUnit)] = None)(f: (A, B) => C): Par[C] = es => { // Combines 2 parallel computation together
-      val fa = pa(es); val fb = pb(es)
-      maybeTimeout
-        .map { case (t, u) => UnitFuture(f(fa.get(t, u), fb.get(t, u))) }
-        .getOrElse { UnitFuture(f(fa.get, fb.get)) }
+    def run(implicit es: ExecutorService): A = {
+      val ref = new AtomicReference[A]
+      val latch = new CountDownLatch(1)
+      pa(es) { a => ref.set(a); latch.countDown() }
+      latch.await()
+      ref.get
     }
+    def map2[B, C](pb: Par[B])(f: (A, B) => C): Par[C] = es => future { cb =>
+      var ar: Option[A] = None
+      var br: Option[B] = None
+      val combiner = Actor[Either[A,B]](es) {
+        case Left(a) => br match {
+          case None => ar = Some(a)
+          case Some(b) => eval(es)(cb(f(a, b)))
+        }
+        case Right(b) => ar match {
+          case None => br = Some(b)
+          case Some(a) => eval(es)(cb(f(a, b)))
+        }
+      }
+      pa(es)(a => combiner ! Left(a))
+      pb(es)(b => combiner ! Right(b))
+    }
+
+    def map[B](f: A => B): Par[B] = map2(unit(())) { (a, _) => f(a) }
   }
 
-  def unit[A](a: A): Par[A] = _ => UnitFuture(a) // promotes a constant value to parallel computation
-  /**
-   *  Marks a computation for concurrent evaluation
-   * @note
-   *       - if fork start the computation immediately, then it must know strategy to execution this computation
-   *         and have access to the related resource to fullfill the strategy.
-   *         (ex. user thread, dedicated thread pool, another process, etc.)
-   *       - if fork defers the computation to get, then it can be agnostic about the strategy and the resource.
-   */
-  def fork[A](pa: => Par[A]): Par[A] = es => es.submit(new Callable[A] { def call = pa.run(es) })
   def lazyUnit[A](a: => A): Par[A] = fork(unit(a)) // Derived from the former 2. Composability gives choice to the library user
   def asyncF[A,B](f: A => B): A => Par[B] = a => lazyUnit(f(a))
   def sequence[A](ps: List[Par[A]]): Par[List[A]] = ps match {
