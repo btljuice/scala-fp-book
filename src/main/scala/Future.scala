@@ -1,4 +1,4 @@
-package sfpbook
+package sfpbook.ch7
 
 import scala.collection.immutable
 import scala.collection.immutable.PagedSeq
@@ -90,10 +90,35 @@ object Par {
   def asyncF[A,B](f: A => B): A => Par[B] = a => lazyUnit(f(a))
   def sequence[A](ps: List[Par[A]]): Par[List[A]] = ps match {
     case Nil => unit(Nil)
-    case Cons(pa, pt) => pa.map2(sequence(pt)) { Cons(_, _) }
+    case pa :: pt => pa.map2(sequence(pt)) { _ :: _ }
   }
 
-  def parMap[A, B](ps: List[A])(f: A => B): Par[List[B]] = sequence(ps.map(asyncF(f)))
+  def parMap[A, B](as: List[A])(f: A => B): Par[List[B]] = sequence(as.map(asyncF(f)))
+  def parFilter[A](as: List[A])(p: A => Boolean): Par[List[A]] = parMap(as){ Some(_).filter(p) }.map(_.flatten)
+  def parReduce[A, B](as: IndexedSeq[A])(f: (A, A) => A): Par[A] = {
+    require(as.nonEmpty, "Must be non-empty")
+    if (as.size <= 1) unit(as(0))
+    else if (as.size == 2) lazyUnit(f(as(0), as(1)))
+    else {
+      val (l, r) = as.splitAt(as.size / 2)
+      fork(parReduce(l)(f)).map2 { fork(parReduce(r)(f)) }(f)
+    }
+  }
+
+  // Law of mapping
+  // 1. Identity law.
+  //    map(unit(x))(f) == unit(f(x))
+  //    map(unit(x))(id) == unit(x)
+  //    map(y)(id) = y
+  // 2. Composability law
+  //    map( map(unit(x))(g) )(f)
+  // == map( unit(g(x)) )(f)
+  // == unit(f.g(x))
+  // == map(unit(x))(f.g)
+  //
+  // Law of forking
+  // fork(x) == x   // Forking should alter the result of the computation, but simply calculate it asynchronously
+}
 
 
   private object Design {
