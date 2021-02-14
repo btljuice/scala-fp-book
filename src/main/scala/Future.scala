@@ -6,6 +6,9 @@ import scala.collection.immutable
 import scala.collection.immutable.PagedSeq
 import scala.collection.mutable
 import scala.concurrent.duration.TimeUnit
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 // * Goal of the library: Do arbitrary computation in parallel
 // * This could look like a function
@@ -55,13 +58,19 @@ object Par {
   sealed trait Future[A] { private[Par] def apply(k: A => Unit): Unit }
 
   private def eval(es: ExecutorService)(r: => Unit): Unit = es.submit(new Callable[Unit] { def call = r })
-  private def future[A](f: (A => Unit) => Unit): Future[A] = new Future[A] { override def apply(cb: A => Unit): Unit = f(cb) }
+  private def future[A](f: (Try[A] => Unit) => Unit): Future[A] = new Future[A] { override def apply(cb: Try[A] => Unit): Unit = f(cb) }
 
   type Par[A] = ExecutorService => Future[A]
 
-  def unit[A](a: A): Par[A] = _ => future { _(a) }
-  def fork[A](pa: => Par[A]): Par[A] = es => future { cb => eval(es){ pa(es)(cb) } }
-  def delay[A](pa: => Par[A]): Par[A] = pa
+  def unit[A](a: A): Par[A] = _ => future { _(Try(a)) }
+  def fork[A](pa: => Par[A]): Par[A] = es => future { cb => eval(es){
+    Try {
+      pa(es)(cb)
+    } match {
+      case f: Failure[A] => cb(f)
+      case _: Success[A] => ()
+    } } }
+  def delay[A](pa: => Par[A]): Par[A] = es => pa(es)
 
   implicit class RichPar[A](pa: Par[A]) {
     def run(implicit es: ExecutorService): A = {
@@ -72,9 +81,9 @@ object Par {
       ref.get
     }
     def map2[B, C](pb: Par[B])(f: (A, B) => C): Par[C] = es => future { cb =>
-      var ar: Option[A] = None
-      var br: Option[B] = None
-      val combiner = Actor[Either[A,B]](es) {
+      var ar: Option[Try[A]] = None
+      var br: Option[Try[B]] = None
+      val combiner = Actor[Either[Try[A],Try[B]]](es) {
         case Left(a) => br match {
           case None => ar = Some(a)
           case Some(b) => eval(es)(cb(f(a, b)))
