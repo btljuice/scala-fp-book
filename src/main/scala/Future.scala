@@ -96,6 +96,16 @@ object Par {
     def map[B](f: A => B): Par[B] = map2(unit(())) { (a, _) => f(a) }
   }
 
+  def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] = es => {
+    val rn = n.run(es).get
+    choices(rn)(es)
+  }
+
+  def choiceMap[K, A](key: Par[K])(f: K => Par[A]): Par[A] = es => {
+    val rk = key.run(es).get
+    f(rk)(es)
+  }
+
   def lazyUnit[A](a: => A): Par[A] = fork(unit(a)) // Derived from the former 2. Composability gives choice to the library user
   def asyncF[A,B](f: A => B): A => Par[B] = a => lazyUnit(f(a))
   def sequence[A](ps: List[Par[A]]): Par[List[A]] = ps match {
