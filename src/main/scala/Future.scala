@@ -72,6 +72,10 @@ object Par {
   def fork[A](pa: => Par[A]): Par[A] = es => future { cb => eval(es){ pa(es)(cb)} }
   def delay[A](pa: => Par[A]): Par[A] = es => pa(es)
 
+  // A.K.A. flatten
+//  def join[A](pa : Par[Par[A]]): Par[A] = es => pa.run(es).get(es)
+  def join[A](pa : Par[Par[A]]): Par[A] = pa.flatMap(identity)
+
   implicit class RichPar[A](pa: Par[A]) {
     def run(implicit es: ExecutorService): Try[A] = {
       val ref = new AtomicReference[Try[A]]
@@ -94,16 +98,13 @@ object Par {
     }
 
     def map[B](f: A => B): Par[B] = map2(unit(())) { (a, _) => f(a) }
-  }
 
-  def choiceN[A](n: Par[Int])(choices: List[Par[A]]): Par[A] = es => {
-    val rn = n.run(es).get
-    choices(rn)(es)
-  }
-
-  def choiceMap[K, A](key: Par[K])(f: K => Par[A]): Par[A] = es => {
-    val rk = key.run(es).get
-    f(rk)(es)
+    // Bind is also a synonym for `flatMap` in functional terminology
+    def flatMap[B](f: A => Par[B]): Par[B] = es => {
+      val a = pa.run(es).get
+      f(a)(es)
+    }
+//    def flatMap[B](f: A => Par[B]): Par[B] = join(pa.map(f))
   }
 
   def lazyUnit[A](a: => A): Par[A] = fork(unit(a)) // Derived from the former 2. Composability gives choice to the library user
