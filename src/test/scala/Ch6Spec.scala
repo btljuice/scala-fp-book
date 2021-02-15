@@ -62,6 +62,15 @@ class Ch6Spec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
       }
     }
   }
+  "Random" should "choose" in {
+    forAll { (seed: Int, start: Int, end: Int) =>
+      (end > start) ==> {
+        val gen = SimpleRNG(seed)
+        val r = choose(start ,end)(gen)._2
+        start <= r && r < start + end
+      }
+    }
+  }
 
   "Ch6.11" should "coin exercise" in {
     // Insert coin; turn knob

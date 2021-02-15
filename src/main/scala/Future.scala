@@ -84,6 +84,7 @@ object Par {
       latch.await()
       ref.get
     }
+//    def map2[B, C](pb: Par[B])(f: (A, B) => C): Par[C] = flatMap(a => pb.flatMap(b => unit(f(a, b))))
     def map2[B, C](pb: Par[B])(f: (A, B) => C): Par[C] = es => future { cb =>
       var ar: Option[A] = None
       var br: Option[B] = None

@@ -21,6 +21,10 @@ object Random {
       val mod = i % n
       if (i-mod + n-1 >= 0) State.value(mod) else range(n)
     }
+    def choose(start: Int, end: Int): Rand[Int] = {
+      require(start < end, s"end=$end must be > start=$start")
+      range(end - start).map(_ + start)
+    }
 
   def ints(n: Int): Rand[List[Int]] = State.sequence(List.fill(n)(int))
 }
