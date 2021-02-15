@@ -45,23 +45,13 @@ object Test {
     def boolean: Gen[Boolean] = Random.range(2).map { _ == 1 }
     def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = State.sequence(List.fill(n)(g))
     def union[A, B](g0: Gen[A], g1: Gen[A]): Gen[A] = boolean.flatMap { if (_) g0 else g1 }
-    def weighted[A](w0: Double, g0: Gen[A], w1: Double, g1: Gen[A]): Gen[A] = Random.double.flatMap { d =>
-      val p0 = w0 / (w0 + w1)
-      if (p0 < d) g0 else g1
-    }
+    def weighted[A](w0: Double, g0: Gen[A], w1: Double, g1: Gen[A]): Gen[A] = Random.double.flatMap { d => val p0 = w0 / (w0 + w1); if (p0 < d) g0 else g1 }
   }
+
   sealed trait Prop { self =>
     import Prop._
-    def check: Either[FailedCase, SuccessCount]
-    final def &&(p: Prop): Prop = new Prop { // Ex 8.3
-      def check = self.check match {
-        case l@Left(_) => l
-        case Right(s0) => p.check match {
-          case Left((failedCase, s1)) => Left((failedCase, s0 + s1))
-          case Right(s1) => Right(s0 + s1)
-        }
-      }
-    }
+    def check: Option[FailedCase]
+    final def &&(p: Prop): Prop = new Prop { def check = self.check orElse p.check }
   }
   object Prop {
     type FailedCase = (String, SuccessCount)
