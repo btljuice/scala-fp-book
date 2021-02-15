@@ -1,7 +1,9 @@
 package sfpbook.ch8
+
 import sfpbook.ch6.Random
 import sfpbook.ch6.Random.RNG
 import sfpbook.ch6.State
+import sfpbook.ch5.Stream
 
 
 // Ex 8.1
@@ -48,16 +50,30 @@ object Test {
     def weighted[A](w0: Double, g0: Gen[A], w1: Double, g1: Gen[A]): Gen[A] = Random.double.flatMap { d => val p0 = w0 / (w0 + w1); if (p0 < d) g0 else g1 }
   }
 
-  sealed trait Prop { self =>
-    import Prop._
-    def check: Option[FailedCase]
-    final def &&(p: Prop): Prop = new Prop { def check = self.check orElse p.check }
+  case class Prop(run: (Prop.TestCases, RNG) => Prop.Result) {
+    def &&(p: Prop): Prop = Prop( (n, rng) => { val r0 = run(n, rng); if ( r0.isFalsified) r0 else p.run(n, rng) })
+    def ||(p: Prop): Prop = Prop( (n, rng) => { val r0 = run(n, rng); if (!r0.isFalsified) r0 else p.run(n, rng) })
   }
   object Prop {
-    type FailedCase = (String, SuccessCount)
+    type TestCases = Int
+    type FailedCase = String
     type SuccessCount = Int
-  }
+    sealed trait Result { def isFalsified: Boolean }
+    case object Passed extends Result { def isFalsified = false }
+    case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result { def isFalsified = true }
 
-  def forAll[A](a: Gen[A])(f: A => Boolean): Prop = ???
+    def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop { (n, rng) =>
+      randomStream(as)(rng).zip(Stream.from(0)).take(n).map { case (a, i) =>
+        try { if (f(a)) Passed else Falsified(a.toString, i) }
+        catch { case e: Exception => Falsified(buildMsg(a, e), i) }
+      }.find(_.isFalsified).getOrElse(Passed)
+    }
+    def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] = Stream.unfold(rng)( rng => Some(g.run(rng).swap))
+    def buildMsg[A](s: A, e: Exception): String =
+      s"test case: $s\n" +
+      s"generated an exception: ${e.getMessage}\n" +
+      s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
+
+  }
 
 }
