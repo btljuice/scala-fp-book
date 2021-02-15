@@ -27,14 +27,28 @@ import sfpbook.ch6.State
 //    max(a, b) == max(b, a)
 // 3. Order is not important
 //    max(a) == max(shuffle(a))
+// 4. Adding an new element:
+//    max(a, b) <= max(a, max(b, c))
+// 5. Max property
+//    max(a, b) = if (a < b) b else a
+// 6. Identity value
+//    max(a, MIN_VALUE) = a
 
 object Test {
   type Gen[A] = Random.Rand[A]
+  implicit class RichGen[A](g: Gen[A]) {
+    def listOfN(gn: Gen[Int]): Gen[List[A]] = gn.flatMap(Gen.listOfN(_, g))
+  }
   object Gen {
     def choose(start: Int, stopExclusive: Int): Gen[Int] = Random.choose(start, stopExclusive)
     def unit[A](a: => A): Gen[A] = State.value[RNG, A](a)
     def boolean: Gen[Boolean] = Random.range(2).map { _ == 1 }
     def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = State.sequence(List.fill(n)(g))
+    def union[A, B](g0: Gen[A], g1: Gen[A]): Gen[A] = boolean.flatMap { if (_) g0 else g1 }
+    def weighted[A](w0: Double, g0: Gen[A], w1: Double, g1: Gen[A]): Gen[A] = Random.double.flatMap { d =>
+      val p0 = w0 / (w0 + w1)
+      if (p0 < d) g0 else g1
+    }
   }
   sealed trait Prop { self =>
     import Prop._
