@@ -50,6 +50,7 @@ object Test {
     def listOfN[A](n: Int, g: Gen[A]): Gen[List[A]] = State.sequence(List.fill(n)(g))
     def union[A, B](g0: Gen[A], g1: Gen[A]): Gen[A] = boolean.flatMap { if (_) g0 else g1 }
     def weighted[A](w0: Double, g0: Gen[A], w1: Double, g1: Gen[A]): Gen[A] = Random.double.flatMap { d => val p0 = w0 / (w0 + w1); if (p0 < d) g0 else g1 }
+    val int = Random.int
   }
 
   case class SGen[A](forSize: Int => Gen[A]) {
