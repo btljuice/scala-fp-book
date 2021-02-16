@@ -4,6 +4,7 @@ import sfpbook.ch6.Random
 import sfpbook.ch6.Random.RNG
 import sfpbook.ch6.State
 import sfpbook.ch5.Stream
+import sfpbook.ch6.Random.SimpleRNG
 
 
 // Ex 8.1
@@ -62,6 +63,11 @@ object Test {
   case class Prop(run: (MaxSize, TestCases, RNG) => Prop.Result) {
     def &&(p: Prop): Prop = Prop( (ms, n, rng) => { val r0 = run(ms, n, rng); if ( r0.isFalsified) r0 else p.run(ms, n, rng) })
     def ||(p: Prop): Prop = Prop( (ms, n, rng) => { val r0 = run(ms, n, rng); if (!r0.isFalsified) r0 else p.run(ms, n, rng) })
+    def execute(maxSize: Int = 100, testCases: Int= 100, rng: RNG = SimpleRNG(System.currentTimeMillis)): String =
+      run(maxSize, testCases, rng) match {
+        case Passed => s"+ OK, passed $testCases tests."
+        case Falsified(msg, n) => s"! Falsified after $n passed tests:\n $msg"
+      }
   }
   object Prop {
     type MaxSize = Int
