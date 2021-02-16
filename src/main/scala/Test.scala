@@ -57,6 +57,7 @@ object Test {
   }
   object SGen {
     def listOf[A](g: Gen[A]): SGen[List[A]] = SGen(Gen.listOfN(_, g))
+    def listOf1[A](g: Gen[A]): SGen[List[A]] = SGen(i => Gen.listOfN(i + 1, g))
   }
 
   import Prop._

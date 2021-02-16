@@ -8,9 +8,9 @@ import sfpbook.ch8.Test._
 class Ch8Spec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   "Ch8.1" should "simple test example" in {
     val smallInt = Gen.choose(-10, 10)
-    val maxProp = Prop.forAll(SGen.listOf(smallInt)) { ns =>
+    val maxProp = Prop.forAll(SGen.listOf1(smallInt)) { ns =>
       lazy val max = ns.max
-      ns.isEmpty || !ns.exists(_ > max)
+      !ns.exists(_ > max)
     }
     maxProp.execute() shouldEqual "+ OK, passed 100 tests."
   }
