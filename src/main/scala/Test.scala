@@ -40,6 +40,7 @@ object Test {
   type Gen[A] = Random.Rand[A]
   implicit class RichGen[A](g: Gen[A]) {
     def listOfN(gn: Gen[Int]): Gen[List[A]] = gn.flatMap(Gen.listOfN(_, g))
+    def unsized: SGen[A] = SGen(_ => g)
   }
   object Gen {
     def choose(start: Int, stopExclusive: Int): Gen[Int] = Random.choose(start, stopExclusive)
@@ -50,11 +51,20 @@ object Test {
     def weighted[A](w0: Double, g0: Gen[A], w1: Double, g1: Gen[A]): Gen[A] = Random.double.flatMap { d => val p0 = w0 / (w0 + w1); if (p0 < d) g0 else g1 }
   }
 
-  case class Prop(run: (Prop.TestCases, RNG) => Prop.Result) {
-    def &&(p: Prop): Prop = Prop( (n, rng) => { val r0 = run(n, rng); if ( r0.isFalsified) r0 else p.run(n, rng) })
-    def ||(p: Prop): Prop = Prop( (n, rng) => { val r0 = run(n, rng); if (!r0.isFalsified) r0 else p.run(n, rng) })
+  case class SGen[A](forSize: Int => Gen[A]) {
+    def apply(i: Int): Gen[A] = forSize(i)
+  }
+  object SGen {
+    def listOf[A](g: Gen[A]): SGen[List[A]] = SGen(Gen.listOfN(_, g))
+  }
+
+  import Prop._
+  case class Prop(run: (MaxSize, TestCases, RNG) => Prop.Result) {
+    def &&(p: Prop): Prop = Prop( (ms, n, rng) => { val r0 = run(ms, n, rng); if ( r0.isFalsified) r0 else p.run(ms, n, rng) })
+    def ||(p: Prop): Prop = Prop( (ms, n, rng) => { val r0 = run(ms, n, rng); if (!r0.isFalsified) r0 else p.run(ms, n, rng) })
   }
   object Prop {
+    type MaxSize = Int
     type TestCases = Int
     type FailedCase = String
     type SuccessCount = Int
@@ -62,7 +72,14 @@ object Test {
     case object Passed extends Result { def isFalsified = false }
     case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result { def isFalsified = true }
 
-    def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop { (n, rng) =>
+    def forAll[A](g: SGen[A])(f: A => Boolean): Prop = Prop { (max, n, rng) =>
+      val casesPerSize = (n - 1 + max) / max
+      val props = Stream.from(0).take(Math.min(n, max) + 1).map(i => forAll(g(i))(f))
+      val prop = props.map(p => Prop { (max, _, rng) => p.run(max, casesPerSize, rng) }).toList.reduce(_ && _)
+      prop.run(max, n, rng)
+    }
+
+    def forAll[A](as: Gen[A])(f: A => Boolean): Prop = Prop { (_, n, rng) =>
       randomStream(as)(rng).zip(Stream.from(0)).take(n).map { case (a, i) =>
         try { if (f(a)) Passed else Falsified(a.toString, i) }
         catch { case e: Exception => Falsified(buildMsg(a, e), i) }
