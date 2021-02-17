@@ -2,6 +2,8 @@ package sfpbook.ch7
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Callable
 import scala.collection.immutable
 import scala.collection.immutable.PagedSeq
 import scala.collection.mutable
@@ -59,8 +61,8 @@ object Par {
     def apply(f: A => Unit): Actor[A] = ???
   }
 
-  private trait Callable[A] { def call: A }
-  abstract class ExecutorService { def submit[A](a: Callable[A]): Future[A] }
+//  private trait Callable[A] { def call: A }
+//  abstract class ExecutorService { def submit[A](a: Callable[A]): Future[A] }
   sealed trait Future[A] { private[Par] def apply(k: Try[A] => Unit): Unit }
 
   private def eval(es: ExecutorService)(r: => Unit): Unit = es.submit(new Callable[Unit] { def call = r })
@@ -71,6 +73,7 @@ object Par {
   def unit[A](a: A): Par[A] = _ => future { _(Try(a)) }
   def fork[A](pa: => Par[A]): Par[A] = es => future { cb => eval(es){ pa(es)(cb)} }
   def delay[A](pa: => Par[A]): Par[A] = es => pa(es)
+  def equal[A](p1: Par[A], p2: Par[A]): Par[Boolean] = p1.map2(p2)(_ == _)
 
   // A.K.A. flatten
 //  def join[A](pa : Par[Par[A]]): Par[A] = es => pa.run(es).get(es)

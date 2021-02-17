@@ -42,6 +42,7 @@ object Test {
   implicit class RichGen[A](g: Gen[A]) {
     def listOfN(gn: Gen[Int]): Gen[List[A]] = gn.flatMap(Gen.listOfN(_, g))
     def unsized: SGen[A] = SGen(_ => g)
+    def **[B](gb: Gen[B]): Gen[(A,B)] = g.map2(gb)((_, _)) // Product
   }
   object Gen {
     def choose(start: Int, stopExclusive: Int): Gen[Int] = Random.choose(start, stopExclusive)
@@ -68,6 +69,7 @@ object Test {
     def execute(maxSize: Int = 100, testCases: Int= 100, rng: RNG = SimpleRNG(System.currentTimeMillis)): String =
       run(maxSize, testCases, rng) match {
         case Passed => s"+ OK, passed $testCases tests."
+        case Proved => "+ OK, proved test."
         case Falsified(msg, n) => s"! Falsified after $n passed tests:\n $msg"
       }
   }
@@ -78,6 +80,7 @@ object Test {
     type SuccessCount = Int
     sealed trait Result { def isFalsified: Boolean }
     case object Passed extends Result { def isFalsified = false }
+    case object Proved extends Result { def isFalsified = false }
     case class Falsified(failure: FailedCase, successes: SuccessCount) extends Result { def isFalsified = true }
 
     def forAll[A](g: SGen[A])(f: A => Boolean): Prop = Prop { (max, n, rng) =>
@@ -93,8 +96,10 @@ object Test {
         catch { case e: Exception => Falsified(buildMsg(a, e), i) }
       }.find(_.isFalsified).getOrElse(Passed)
     }
-    def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] = Stream.unfold(rng)( rng => Some(g.run(rng).swap))
-    def buildMsg[A](s: A, e: Exception): String =
+    def check[A](p: => Boolean): Prop = Prop { (_, _, _) => if (p) Passed else Falsified("()", 0) }
+
+    private def randomStream[A](g: Gen[A])(rng: RNG): Stream[A] = Stream.unfold(rng)( rng => Some(g.run(rng).swap))
+    private def buildMsg[A](s: A, e: Exception): String =
       s"test case: $s\n" +
       s"generated an exception: ${e.getMessage}\n" +
       s"stack trace:\n ${e.getStackTrace.mkString("\n")}"
