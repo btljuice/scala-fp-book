@@ -53,12 +53,6 @@ class ParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks
       import p._
       run(alwaysFail[Unit])(s) shouldBe a[Left[_, _]]
     } }
-  it should "empty and nonEmpty query the string" in {
-    p.run(p.empty)("") shouldEqual true
-    p.run(p.empty)("a") shouldEqual false
-    p.run(p.nonEmpty)("") shouldEqual false
-    p.run(p.nonEmpty)("a") shouldEqual true
-  }
   it should "noop returns the string unparsed" in {
     forAll { (s: String) =>
     import p._
