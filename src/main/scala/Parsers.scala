@@ -1,5 +1,7 @@
 package sfpbook.ch9
 
+import scala.util.matching.Regex
+
 // - Goal design a Parser combinator through "algebraic design".
 // - "Algebraic design" means thinking about the laws that should hold before implementation
 // - String as input
@@ -13,32 +15,25 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   def run[A](p: Parser[A])(input: String): Either[ParseError, A]
 
   // Some default parsers. Not sure yet if they are all relevant
-  val noop: Parser[String] // Should return the string unparsed
-  val empty: Parser[Boolean] = noop.map(_.isEmpty)
-  val nonEmpty: Parser[Boolean] = noop.map(_.nonEmpty)
+  val noop: Parser[String] // Returns the string unparsed
   def alwaysFail[A]: Parser[A]
-  final def succeed[A](a: => A): Parser[A] = noop.map(_ => a)
+  def succeed[A](a: => A): Parser[A]
 
   final def count0(a: Char): Parser[Int] = char(a).many.slice.map(_.length)
   final def count1(a: Char): Parser[Int] = char(a).many1.slice.map(_.length)
 
   implicit def char(a: Char): Parser[Char] = string(a.toString).map(_.head)
   implicit def string(s: String): Parser[String]
+  implicit def regex(r: Regex): Parser[String]
 
   // Primitives to implement
-  // - "and" operator: For an "and" parser, we'd have to decide for which of the
-  //   2 successful runs, we retain the result. An arbitrary choice could be made. (1st one)
-
-  // Let's say we decide to retain the first result, then this operation is not commutative
-  // The operation will be associative
   protected[this] def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
-  protected[this] def map[A, B](p: Parser[A])(f: A => B): Parser[B]
   protected[this] def flatMap[A, B](p: Parser[A])(f: A => Parser[B]): Parser[B]
   protected[this] def slice[A](pa: Parser[A]): Parser[String]
-  protected[this] def product[A, B](pa: Parser[A], pb: => Parser[B]): Parser[(A, B)]
 
-  private[this] def map2[A, B, C](pa: Parser[A], pb: => Parser[B])(f: (A, B) => C): Parser[C] =
-    pa ** pb map { case (a, b) => f(a, b) }
+  private[this] final def map[A, B](p: Parser[A])(f: A => B): Parser[B] = flatMap(p) { a => succeed(f(a)) }
+  private[this] final def product[A, B](pa: Parser[A], pb: => Parser[B]): Parser[(A, B)] = map2(pa, pb)(_ -> _)
+  private[this] final def map2[A, B, C](pa: Parser[A], pb: => Parser[B])(f: (A, B) => C): Parser[C] = for { a <- pa; b <- pb } yield f(a, b)
 
   private[this] final def concatenate[A](ps: Seq[Parser[A]]): Parser[List[A]] =
     if (ps.isEmpty) succeed(Nil)
