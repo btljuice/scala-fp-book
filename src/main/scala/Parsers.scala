@@ -11,11 +11,22 @@ import scala.util.matching.Regex
 // ANSME: I'm not sure yet how the covariant. Does it mean Parser implementation has
 //        to be covariant on its parameter. We'll figure it out pretty soon.
 trait Parsers[ParseError, Parser[+_]] { self =>
+  private[this] val LONG = """(?:0|-?[1-9][0-9]*)"""
+  private[this] val DOUBLE = """(?:NaN|-?Infinity|-?(?:0(?:\.[0-9]*)?|(?:[1-9][0-9]*\.[0-9]*)|(?:\.[0-9]+))(?:[Ee][+-]?[0-9]+)?)"""
+
   // Executes the parser
   def run[A](p: Parser[A])(input: String): Either[ParseError, A]
 
   // Some default parsers. Not sure yet if they are all relevant
   val noop: Parser[String] // Returns the string unparsed
+  val long: Parser[Long] = regex(LONG.r).map(_.toLong)
+  val double: Parser[Double] = regex(DOUBLE.r).map(_.toDouble)
+  val boolean: Parser[Boolean] = (string("true") | string("false")).map(_.toBoolean)
+  val dblQuotedString: Parser[String] = regex("\".*\"".r).map(_.drop(1).dropRight(1))
+  val sglQuotedString: Parser[String] = regex("'.*'".r).map(_.drop(1).dropRight(1))
+  val spaces: Parser[String] = char(' ').many.slice
+
+  def lazzy[A](pa: => Parser[A]): Parser[A]
   def alwaysFail[A]: Parser[A]
   def succeed[A](a: => A): Parser[A]
 
@@ -25,6 +36,20 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   implicit def char(a: Char): Parser[Char] = string(a.toString).map(_.head)
   implicit def string(s: String): Parser[String]
   implicit def regex(r: Regex): Parser[String]
+
+  def separated[S, A](sep: Parser[S])(pas: Parser[A]*): Parser[List[A]] =
+    pas.foldRight(succeed(List.empty[A])) { separated2(sep)(_, _).map { case (a, l) => a :: l } }
+  def separated2[S, A, B](sep: Parser[S])(pa: Parser[A], pb: Parser[B]): Parser[(A, B)] =
+    pa ** sep ** pb map { case ((a, _), b) => (a, b) }
+  def separated3[S, A, B, C](sep: Parser[S])(pa: Parser[A], pb: Parser[B], pc: Parser[C]): Parser[(A, B, C)] =
+    pa ** sep ** pb ** sep ** pc map { case ((((a, _), b), _), c) => (a, b, c) }
+  def separated4[S, A, B, C, D](sep: Parser[S])(pa: Parser[A], pb: Parser[B], pc: Parser[C], pd: Parser[D]): Parser[(A, B, C, D)] =
+    pa ** sep ** pb ** sep ** pc ** sep ** pd map { case ((((((a, _), b), _), c), _), d) => (a, b, c, d) }
+
+  def sepSequence[S, A](sep: Parser[S])(a: => Parser[A]): Parser[List[A]] =
+    ((a ** sep).many1 ** a).map { case (l, a) => l.map(_._1) ::: a :: Nil } |
+      a.map(_ :: Nil) |
+      succeed(Nil)
 
   // Primitives to implement
   protected[this] def or[A](p1: Parser[A], p2: => Parser[A]): Parser[A]
@@ -57,7 +82,6 @@ trait Parsers[ParseError, Parser[+_]] { self =>
 
     def product[B](p2: => Parser[B]): Parser[(A, B)] = self.product(p, p2)
     def **[B](p2: => Parser[B]): Parser[(A, B)] = product(p2)
-
     def +[B >: A](p2: => Parser[List[B]]): Parser[List[B]] = p ** p2 map { case (h, t) => h :: t }
 
     def map2[B, C](pb: => Parser[B])(f: (A, B) => C): Parser[C] = self.map2(p, pb)(f)
