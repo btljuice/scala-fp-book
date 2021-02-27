@@ -16,9 +16,9 @@ object Json {
 
   def parser[Err, Parser[+_]](P: Parsers[Err,Parser]): Parser[Json] = {
     import P._
-    val self: Parser[Json] = lazzy(parser(P))
+    val self: Parser[Json] = delay(parser(P))
 
-    def commaSeparated[A](a: => Parser[A]): Parser[List[A]] = sepSequence(spaces ** ',' ** spaces)(a)
+    def commaSeparated[A](a: => Parser[A]): Parser[List[A]] = sepSequence(spaces ** "," ** spaces)(a)
 
     val jnull: Parser[JNull.type] = string("null").map(_ => JNull)
     val jnumber: Parser[JNumber] = double.map(JNumber)
@@ -29,7 +29,7 @@ object Json {
 
     val jobject: Parser[JObject] = {
       val keyValues: Parser[Map[String, Json]] = commaSeparated(
-        separated3(spaces)(dblQuotedString, ':', self)
+        separated3(spaces)(dblQuotedString, ":", self)
       ).map { _.map { case (k, _, v) => (k, v) }.toMap }
 
       separated3(spaces)("{", keyValues, "}").map { case (_, m, _) => JObject(m) }

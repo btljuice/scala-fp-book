@@ -88,5 +88,14 @@ class ParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks
     def orAssociativeLaw[A](p1: Parser[A], p2: Parser[A], p3: Parser[A])(implicit g: Gen[String]) =
       (p1 | (p2 | p3)) === ((p1 | p2) | p3)
 
+
+    def labelLaw[A](pa: Parser[A])(implicit g: Gen[String]) =
+      forAll(g, Gen.asciiStr) { (input, msg) =>
+        import p._
+        run(label(msg)(pa))(input) match {
+          case Left(e) => errorMessage(e) shouldEqual msg
+          case _ => true
+        }
+      }
   }
 }
