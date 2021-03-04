@@ -2,28 +2,32 @@ package sfpbook.ch9
 
 import scala.util.matching.Regex
 
-case class SimpleParser[+A](run: Location => SimpleParser.Result[A], attempt: Boolean = false)
+case class SimpleParser[+A](run: Location => SimpleParser.Result[A])
 
 object SimpleParser {
   sealed trait Result[+A] {
     def map[B >: A](f: A => B): Result[B]
     def mapError(f: ParseError => ParseError): Result[A]
+    def uncommit: Result[A]
  }
   case class ParseSuccess[+A](get: A, charsConsumed: Int) extends Result[A] {
     override def map[B >: A](f: A => B): Result[B] = ParseSuccess(f(get), charsConsumed)
     override def mapError(f: ParseError => ParseError): Result[A] = this
+    override def uncommit: Result[A] = this
   }
-  case class ParseError(stack: List[(String, Location)]) extends Result[Nothing] {
+  case class ParseError(stack: List[(String, Location)], isCommited: Boolean) extends Result[Nothing] {
     override def map[B >: Nothing](f: Nothing => B): Result[B] = this
     override def mapError(f: ParseError => ParseError): Result[Nothing] = f(this)
+    override def uncommit: Result[Nothing] = ParseError(stack, false)
 
     def last: (String, Location) = stack.head
     def lastLocation: Location = last._2
-    def push(msg: String, l: Location = lastLocation): ParseError = ParseError((msg, l) :: stack)
+    def push(msg: String, l: Location = lastLocation): ParseError = ParseError((msg, l) :: stack, isCommited)
+
   }
   object ParseError {
+    def apply(msg: String, l: Location): ParseError = ParseError((msg, l) :: Nil, true)
     def apply(msg: String, input: String, offset: Int): ParseError = ParseError(msg, Location(input, offset))
-    def apply(msg: String, l: Location): ParseError = ParseError((msg, l) :: Nil)
   }
 }
 
@@ -40,7 +44,7 @@ object SimpleParsers extends Parsers[SimpleParser.ParseError, SimpleParser] {
   override val noop = sp { l => ParseSuccess(l.after, l.after.length) }
 
   override def delay[A](pa: => SimpleParser[A]) = sp { pa.run }
-  override def attempt[A](pa: SimpleParser[A]) = SimpleParser(pa.run, attempt = true)
+  override def attempt[A](pa: SimpleParser[A]) = sp { l => pa.run(l).uncommit }
 
   override def alwaysFail[A]= sp { ParseError("alwaysFail", _) }
   override def succeed[A](a: => A) = sp { _ => ParseSuccess(a, 0) }
@@ -59,15 +63,17 @@ object SimpleParsers extends Parsers[SimpleParser.ParseError, SimpleParser] {
 
   override protected[this] def or[A](p1: SimpleParser[A], p2: => SimpleParser[A]) = sp { l =>
     p1.run(l) match {
-      case s: ParseSuccess[A] => s
-      case _: ParseError if p1.attempt => p2.run(l)
-      case e: ParseError => e
+      case ParseError(_, false) => p2.run(l)
+      case r => r
     }
   }
 
   override protected[this] def flatMap[A, B](p: SimpleParser[A])(f: A => SimpleParser[B]): SimpleParser[B] = sp { l =>
     p.run(l) match {
-      case ParseSuccess(get, n) => f(get).run(l + n)
+      case ParseSuccess(a, n) => f(a).run(l + n) match {
+        case ParseSuccess(b, m) => ParseSuccess(b, n + m)
+        case ParseError(s, isCommited) => ParseError(s, isCommited || n > 0)
+      }
       case e: ParseError => e
     }
   }
@@ -81,8 +87,8 @@ object SimpleParsers extends Parsers[SimpleParser.ParseError, SimpleParser] {
 
   override def label[A](msg: String)(p: SimpleParser[A]): SimpleParser[A] = sp { l =>
     p.run(l).mapError {
-      case ParseError((_, loc) :: t) => ParseError((msg, loc) :: t)
-      case ParseError(Nil) => sys.error("Unexpected. Should be a non empty-list")
+      case ParseError((_, loc) :: t, isCommited) => ParseError((msg, loc) :: t, isCommited)
+      case ParseError(Nil, _) => sys.error("Unexpected. Should be a non empty-list")
     }
   }
 
