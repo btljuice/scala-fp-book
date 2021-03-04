@@ -10,6 +10,8 @@ case class Location(input: String, offset: Int = 0) {
   }
   lazy val after = input.substring(offset)
   lazy val before = input.substring(0, offset)
+
+  def +(i: Int): Location = Location(input, offset + i)
 }
 
 // - Goal design a Parser combinator through "algebraic design".
