@@ -5,9 +5,22 @@ import scala.util.matching.Regex
 case class SimpleParser[+A](run: String => SimpleParser.Result[A], attempt: Boolean = false)
 
 object SimpleParser {
-  sealed trait Result[+A]
-  case class ParseSuccess[+A](get: A, location: Location) extends Result[A]
-  case class ParseError(stack: List[(String, Location)]) extends Result[Nothing]
+  sealed trait Result[+A] {
+    def map[B >: A](f: A => B): Result[B]
+    def mapError(f: ParseError => ParseError): Result[A]
+ }
+  case class ParseSuccess[+A](get: A, location: Location) extends Result[A] {
+    override def map[B >: A](f: A => B): Result[B] = ParseSuccess(f(get), location)
+    override def mapError(f: ParseError => ParseError): Result[A] = this
+  }
+  case class ParseError(stack: List[(String, Location)]) extends Result[Nothing] {
+    override def map[B >: Nothing](f: Nothing => B): Result[B] = this
+    override def mapError(f: ParseError => ParseError): Result[Nothing] = f(this)
+
+    def last: (String, Location) = stack.head
+    def lastLocation: Location = last._2
+    def push(msg: String, l: Location = lastLocation): ParseError = ParseError((msg, l) :: stack)
+  }
   object ParseSuccess {
     def apply[A](get: A, input: String, offset: Int = 0): ParseSuccess[A] = ParseSuccess(get, Location(input, offset))
   }
@@ -71,18 +84,14 @@ object SimpleParsers extends Parsers[SimpleParser.ParseError, SimpleParser] {
   }
 
   override def label[A](msg: String)(p: SimpleParser[A]): SimpleParser[A] = sp { i =>
-    p.run(i) match {
-      case s: ParseSuccess[A] => s
+    p.run(i).mapError {
       case ParseError(h :: t) => ParseError((msg, h._2) :: t)
       case ParseError(Nil) => sys.error("Unexpected. Should be a non empty-list")
     }
   }
 
   override def scope[A](msg: String)(p: SimpleParser[A]): SimpleParser[A] = sp { i =>
-    p.run(i) match {
-      case s: ParseSuccess[A] => s
-      case ParseError(stack) => ParseError((msg, stack.head._2) :: stack)
-    }
+    p.run(i).mapError { _.push(msg) }
   }
 
   override def errorLocation(e: ParseError): Location = e.stack.head._2
