@@ -48,6 +48,14 @@ object Monoids {
   def foldMap[A, B](as: List[A])(f: A => B)(implicit m: Monoid[B]): B =
     as.foldLeft(m.zero){ (b, a) => m.op(b, f(a)) }
 
+  def foldMapV[A, B](as: IndexedSeq[A])(f: A => B)(implicit m: Monoid[B]): B = as.size match {
+    case 0 => m.zero
+    case 1 => f(as.head)
+    case n =>
+      val (l, r) = as.splitAt(n/2)
+      m.op( foldMapV(l)(f), foldMapV(r)(f) )
+  }
+
   def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B =
     foldMap(as)(a => f(a, _))(Instances.composeMonoid[B])(z)
 
