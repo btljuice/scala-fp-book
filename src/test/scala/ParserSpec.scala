@@ -41,6 +41,13 @@ class ParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks
       p.run(attempt(s1) | s2)(s3) shouldBe a[Left[_, _]]
     }}
   }
+  "** operator" should "concatenate parsing" in {
+    forAll { (s1: String, s2: String) => whenever(s1.nonEmpty && s2.nonEmpty) {
+      import p._
+      p.run(string(s1) ** s2)(s1 + s2) shouldEqual Right((s1, s2))
+      p.run(string(s1) ** s2)(s1 + " " + s2) shouldBe a [Left[_, _]]
+    } }
+  }
   "exactly" should "matches exactly number specified" in {
     forAll { (s1: String, n: Int) => whenever(0 <= n && n <= 10) {
       import p._
