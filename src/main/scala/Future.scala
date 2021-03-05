@@ -11,6 +11,7 @@ import scala.concurrent.duration.TimeUnit
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+import sfpbook.ch10.Monoid
 
 // * Goal of the library: Do arbitrary computation in parallel
 // * This could look like a function
@@ -74,6 +75,18 @@ object Par {
   def fork[A](pa: => Par[A]): Par[A] = es => future { cb => eval(es){ pa(es)(cb)} }
   def delay[A](pa: => Par[A]): Par[A] = es => pa(es)
   def equal[A](p1: Par[A], p2: Par[A]): Par[Boolean] = p1.map2(p2)(_ == _)
+
+  implicit def parMonoid[A](m: Monoid[A]): Monoid[Par[A]] = new Monoid[Par[A]] {
+    override def op(a1: Par[A], a2: Par[A]): Par[A] = fork(a1).map2(fork(a2))(m.op)
+    override def zero: Par[A] = unit(m.zero)
+  }
+  def parFoldMap[A, B](v: IndexedSeq[A])(f: A => B)(implicit m: Monoid[B]): Par[B] = v.size match {
+    case 0 => unit(m.zero)
+    case 1 => lazyUnit(f(v.head))
+    case n =>
+      val (l, r) = v.splitAt(n/2)
+      m.op( parFoldMap(l)(f) , parFoldMap(r)(f) )
+  }
 
   // A.K.A. flatten
 //  def join[A](pa : Par[Par[A]]): Par[A] = es => pa.run(es).get(es)
