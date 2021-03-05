@@ -49,7 +49,7 @@ object SimpleParsers extends Parsers[SimpleParser.ParseError, SimpleParser] {
   override def alwaysFail[A]= sp { ParseError("alwaysFail", _) }
   override def succeed[A](a: => A) = sp { _ => ParseSuccess(a, 0) }
 
-  override def string(s: String) = sp { l =>
+  override implicit def string(s: String) = sp { l =>
     def diff: Int = s zip l.after indexWhere { case (x, y) => x != y }
     if (l.after.startsWith(s)) ParseSuccess(s, s.length)
     else ParseError(s"string mismatch ($s)", l + diff)

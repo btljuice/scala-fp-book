@@ -26,6 +26,9 @@ trait Parsers[ParseError, Parser[+_]] { self =>
   private[this] val LONG = """(?:0|-?[1-9][0-9]*)"""
   private[this] val DOUBLE = """(?:NaN|-?Infinity|-?(?:0(?:\.[0-9]*)?|(?:[1-9][0-9]*\.[0-9]*)|(?:\.[0-9]+))(?:[Ee][+-]?[0-9]+)?)"""
 
+  type ParseErrorType = ParseError
+  type ParserType[+A] = Parser[A]
+
   // Executes the parser
   def run[A](p: Parser[A])(input: String): Either[ParseError, A]
 
