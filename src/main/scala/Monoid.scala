@@ -5,7 +5,45 @@ trait Monoid[A] {
   def zero: A
 }
 
-object Monoids {
+object Monoid {
+  def productMonoid[A, B](ma: Monoid[A], mb: Monoid[B]): Monoid[(A, B)] = new Monoid[(A, B)] {
+    def op(x: (A, B), y: (A, B)) = (ma.op(x._1, y._1), mb.op(x._2, y._2))
+    def zero = (ma.zero, mb.zero)
+  }
+
+  def mergeMapMonoid[K, V](m: Monoid[V]): Monoid[Map[K, V]] = new Monoid[Map[K, V]] {
+    def op(m1: Map[K, V], m2: Map[K, V]) =
+      (m1.keySet ++ m2.keySet).foldLeft(Map.newBuilder[K, V]) { (acc, k) =>
+        val v = m.op(m1.getOrElse(k, m.zero), m2.getOrElse(k, m.zero))
+        acc += k -> v
+      }.result
+
+    def zero = Map.empty[K, V]
+  }
+
+  def functionMonoid[A, B](m: Monoid[B]): Monoid[A => B] = new Monoid[A => B] {
+    def op(f1: A => B, f2: A => B) = a => m.op( f1(a), f2(a))
+    def zero = _ => m.zero
+  }
+
+
+  def foldMap[A, B](as: List[A])(f: A => B)(implicit m: Monoid[B]): B =
+    as.foldLeft(m.zero){ (b, a) => m.op(b, f(a)) }
+
+  def foldMapV[A, B](as: IndexedSeq[A])(f: A => B)(implicit m: Monoid[B]): B = as.size match {
+    case 0 => m.zero
+    case 1 => f(as.head)
+    case n =>
+      val (l, r) = as.splitAt(n/2)
+      m.op( foldMapV(l)(f), foldMapV(r)(f) )
+  }
+
+  def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B =
+    foldMap(as)(a => f(a, _))(Instances.composeMonoid[B])(z)
+
+  def foldLeft[A, B](as: List[A])(z: B)(f: (B, A) => B): B =
+    foldMap(as)(a => f(_, a))(Instances.andThenMonoid[B])(z)
+
   object Instances {
     val stringConcat = new Monoid[String] {
       def op(a1: String, a2: String) = a1 + a2
@@ -44,22 +82,4 @@ object Monoids {
       val zero = identity
     }
   }
-
-  def foldMap[A, B](as: List[A])(f: A => B)(implicit m: Monoid[B]): B =
-    as.foldLeft(m.zero){ (b, a) => m.op(b, f(a)) }
-
-  def foldMapV[A, B](as: IndexedSeq[A])(f: A => B)(implicit m: Monoid[B]): B = as.size match {
-    case 0 => m.zero
-    case 1 => f(as.head)
-    case n =>
-      val (l, r) = as.splitAt(n/2)
-      m.op( foldMapV(l)(f), foldMapV(r)(f) )
-  }
-
-  def foldRight[A, B](as: List[A])(z: B)(f: (A, B) => B): B =
-    foldMap(as)(a => f(a, _))(Instances.composeMonoid[B])(z)
-
-  def foldLeft[A, B](as: List[A])(z: B)(f: (B, A) => B): B =
-    foldMap(as)(a => f(_, a))(Instances.andThenMonoid[B])(z)
-
 }
