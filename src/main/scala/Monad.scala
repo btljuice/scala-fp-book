@@ -18,10 +18,15 @@ trait Monad[F[_]] extends Functor[F] {
     case Nil => unit(Nil)
     case h :: t => map2(f(h), traverse(t)(f)) { _ :: _ }
   }
-  final def replicateM[A](n: Int, m: F[A]): F[List[A]] =
-    if (n <= 0) unit(Nil)
-    else map2(m, replicateM(n-1, m)) { _ :: _ }
+  final def replicateM[A](n: Int, m: F[A]): F[List[A]] = if (n <= 0) unit(Nil) else map2(m, replicateM(n-1, m)) { _ :: _ }
   final def product[A, B](ma: F[A], mb: F[B]): F[(A, B)] = map2(ma, mb){ (_, _) }
+  final def filterM[A](l: List[A])(f: A => F[Boolean]): F[List[A]] = {
+    def fWithA(a: A): F[(A, Boolean)] = map(f(a)) { (a, _) }
+    l match {
+      case Nil => unit(Nil)
+      case h :: t => map2(fWithA(h), filterM(t)(f)) { case ((a, p), l) => if (p) a :: l else l }
+    }
+  }
 }
 
 object Monad {
