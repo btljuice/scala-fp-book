@@ -75,13 +75,20 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
           m.flatMap(m.flatMap(fa)(f))(g) shouldEqual m.flatMap(fa)(a => m.flatMap(f(a))(g))
         }
       }
-      label + " monad instance" should "be associative 2" in {
+      it should "be associative 2" in {
         forAll { (a: A, f: A => F[B], g: B => F[C], h: C => F[D]) =>
           m.compose(f, m.compose(g, h))(a) shouldEqual m.compose(m.compose(f, g), h)(a)
         }
       }
-      label + " monad instance" should "identity return itself" in {
-        forAll { fa: F[A] => m.map(fa)(identity) shouldEqual fa }
+      it should "identity return itself" in {
+        forAll { fa: F[A] => m.flatMap[A, A](fa)(x => m.unit(x)) shouldEqual fa }
+        forAll { (a: A, f: A => F[B]) => m.flatMap[A, B](m.unit(a))(f) shouldEqual f(a) }
+      }
+      it should "identity return itself 2" in {
+        forAll { (a: A, f: A => F[B]) =>
+          m.compose[A, A, B](x => m.unit(x), f)(a) shouldEqual f(a)
+          m.compose[A, B, B](f, x => m.unit(x))(a) shouldEqual f(a)
+        }
       }
     }
   }
