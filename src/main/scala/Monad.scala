@@ -13,6 +13,7 @@ trait Monad[F[_]] extends Functor[F] {
   final def map[A, B](m: F[A])(f: A => B): F[B] = flatMap(m)(a => unit(f(a)))
   final def map2[A, B, C](ma: F[A], mb: F[B])(f: (A, B) => C): F[C] = flatMap(ma) { a => map(mb) { b => f(a, b) } }
 
+  final def join[A](mma: F[F[A]]): F[A] = flatMap(mma)(identity)
   final def sequence[A](l: List[F[A]]): F[List[A]] = traverse(l)(identity)
   final def traverse[A,B](l: List[A])(f : A => F[B]): F[List[B]] = l match {
     case Nil => unit(Nil)
@@ -29,7 +30,11 @@ trait Monad[F[_]] extends Functor[F] {
   }
   final def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = a => flatMap(f(a))(g)
 
+  ///// Primitives alternatives:
+  // 1. unit, compose
   private[this] def flatMapFromCompose[A, B](m: F[A])(f: A => F[B]): F[B] = compose[Unit, A, B](_ => m, f)(())
+  // 2. unit, map, join
+  private[this] def flatMapFromMapAndJoin[A, B](m: F[A])(f: A => F[B]): F[B] = join(map(m)(f))
 }
 
 object Monad {
@@ -61,6 +66,13 @@ object Monad {
         def unit[A](a: => A) = State.value(a)
         def flatMap[A, B](m: S[A])(f: A => S[B]): S[B] = m flatMap f
       }
+    }
+
+    // This is probably the simplest monad that can be. It's just a container over value of A
+    case class Id[A](value: A)
+    val idMonad = new Monad[Id] {
+      def unit[A](a: => A) = Id(a)
+      def flatMap[A, B](m: Id[A])(f: A => Id[B]): Id[B] = f(m.value)
     }
   }
 }

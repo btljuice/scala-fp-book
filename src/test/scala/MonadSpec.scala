@@ -9,6 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.matchers.should.Matchers.exist.and
 import org.scalatest.matchers.should._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import sfpbook.ch11.Monad.Instances.Id
 
 class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   "optionMonad" should "replicateM generate some" in {
@@ -58,9 +59,12 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
     m.filterM(input)(_ => List(true, false)) shouldEqual expected
   }
 
+  implicit def arbId[A](implicit arb: Arbitrary[A]): Arbitrary[Id[A]] = Arbitrary(arb.arbitrary.map(Id(_)))
+
   MonadLaw.test[Option, Int, String, Double, Char]("optionMonad", Monad.Instances.optionMonad)
   MonadLaw.test[List, Int, String, Double, Char]("listMonad", Monad.Instances.listMonad)
   MonadLaw.test[Stream, Int, String, Double, Char]("streamMonad", Monad.Instances.streamMonad)
+  MonadLaw.test[Id, Int, String, Double, Char]("idMonad", Monad.Instances.idMonad)
 
   object MonadLaw {
     def test[F[_], A, B, C, D](label: String, m: Monad[F])(implicit
