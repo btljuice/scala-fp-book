@@ -74,9 +74,10 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
       arbG: Arbitrary[B => F[C]],
       arbH: Arbitrary[C => F[D]],
     ) = {
+      import m._
       label + " monad instance" should "be associative" in {
         forAll { (fa: F[A], f: A => F[B], g: B => F[C]) =>
-          m.flatMap(m.flatMap(fa)(f))(g) shouldEqual m.flatMap(fa)(a => m.flatMap(f(a))(g))
+          fa.flatMap(f).flatMap(g) shouldEqual fa.flatMap(a => f(a).flatMap(g))
         }
       }
       it should "be associative 2" in {
@@ -85,8 +86,8 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
         }
       }
       it should "identity return itself" in {
-        forAll { fa: F[A] => m.flatMap[A, A](fa)(x => m.unit(x)) shouldEqual fa }
-        forAll { (a: A, f: A => F[B]) => m.flatMap[A, B](m.unit(a))(f) shouldEqual f(a) }
+        forAll { fa: F[A] => fa.flatMap(a => m.unit(a)) shouldEqual fa }
+        forAll { (a: A, f: A => F[B]) => m.unit(a).flatMap(f) shouldEqual f(a) }
       }
       it should "identity return itself 2" in {
         forAll { (a: A, f: A => F[B]) =>

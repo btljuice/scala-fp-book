@@ -6,7 +6,7 @@ import sfpbook.ch7.Par.Par
 import sfpbook.ch8.Test.Gen
 
 /** All monads are functor because they implement map (a abide to the same laws) */
-trait Monad[F[_]] extends Functor[F] {
+trait Monad[F[_]] extends Functor[F] { self =>
   def unit[A](a: => A): F[A]
   def flatMap[A, B](m: F[A])(f: A => F[B]): F[B]
 
@@ -35,6 +35,16 @@ trait Monad[F[_]] extends Functor[F] {
   private[this] def flatMapFromCompose[A, B](m: F[A])(f: A => F[B]): F[B] = compose[Unit, A, B](_ => m, f)(())
   // 2. unit, map, join
   private[this] def flatMapFromMapAndJoin[A, B](m: F[A])(f: A => F[B]): F[B] = join(map(m)(f))
+
+  implicit class MonadOps[A](m: F[A]) {
+    def flatMap[B](f: A => F[B]): F[B] = self.flatMap(m)(f)
+    def map[B](f: A => B): F[B] = self.map(m)(f)
+    def map2[B, C](mb: F[B])(f: (A, B) => C) = self.map2(m, mb)(f)
+    def **[B](mb: F[B]): F[(A, B)] = self.product(m, mb)
+  }
+  implicit class MonadOps2[A](m: F[F[A]]) {
+    def join: F[A] = self.join(m)
+  }
 }
 
 object Monad {
