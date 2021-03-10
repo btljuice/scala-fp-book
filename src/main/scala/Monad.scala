@@ -27,6 +27,9 @@ trait Monad[F[_]] extends Functor[F] {
       case h :: t => map2(fWithA(h), filterM(t)(f)) { case ((a, p), l) => if (p) a :: l else l }
     }
   }
+  final def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = a => flatMap(f(a))(g)
+
+  private[this] def flatMapFromCompose[A, B](m: F[A])(f: A => F[B]): F[B] = compose[Unit, A, B](_ => m, f)(())
 }
 
 object Monad {

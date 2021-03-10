@@ -56,6 +56,48 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
       Nil
     )
     m.filterM(input)(_ => List(true, false)) shouldEqual expected
+  }
 
+  MonadLaw.test[Option, Int, String, Double, Char]("optionMonad", Monad.Instances.optionMonad)
+  MonadLaw.test[List, Int, String, Double, Char]("listMonad", Monad.Instances.listMonad)
+  MonadLaw.test[Stream, Int, String, Double, Char]("streamMonad", Monad.Instances.streamMonad)
+
+  object MonadLaw {
+    def test[F[_], A, B, C, D](label: String, m: Monad[F])(implicit
+      arbA: Arbitrary[A],
+      arbFa: Arbitrary[F[A]],
+      arbF: Arbitrary[A => F[B]],
+      arbG: Arbitrary[B => F[C]],
+      arbH: Arbitrary[C => F[D]],
+    ) = {
+      label + " monad instance" should "be associative" in {
+        forAll { (fa: F[A], f: A => F[B], g: B => F[C]) =>
+          m.flatMap(m.flatMap(fa)(f))(g) shouldEqual m.flatMap(fa)(a => m.flatMap(f(a))(g))
+        }
+      }
+      label + " monad instance" should "be associative 2" in {
+        forAll { (a: A, f: A => F[B], g: B => F[C], h: C => F[D]) =>
+          m.compose(f, m.compose(g, h))(a) shouldEqual m.compose(m.compose(f, g), h)(a)
+        }
+      }
+      label + " monad instance" should "identity return itself" in {
+        forAll { fa: F[A] => m.map(fa)(identity) shouldEqual fa }
+      }
+    }
   }
 }
+
+// Ex 11.8
+// Convert compose to flatMap to show associativity law is equivalent knowing:
+// * compose(f, compose(g, h)) = compose(compose(f, g), h)
+// * compose(f, g) = a => f(a).flatMap(g)
+//
+// lhs: a => f(a).flatMap( compose(g, h)       )
+//                       ( b=> g(b).flatMap(h) )
+//      a => f(a).flatMap( b => g(b).flatMap(h) )
+//
+// rhs: compose(b => f(b).flatMap(g), h)
+//      a => f(a).flatMap(g).flatMap(h)
+//
+// If f is identity and a == monad then we have the same associativity
+//
