@@ -26,6 +26,7 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
     m.filterM(input)(i => if (i == 4) None else Some(true)) shouldEqual None
 
   }
+
   "listMonad" should "replicateM generate all permutations" in {
     val m = Monad.Instances.listMonad
     val input = 1 :: 2 :: 3 :: Nil
@@ -57,6 +58,24 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
       Nil
     )
     m.filterM(input)(_ => List(true, false)) shouldEqual expected
+  }
+
+  // FP Book: Monads provide a "context" for introducing and binding variables, and performing variable substitution.
+  // Think about map of Option VS map List VS map Either.
+  // 1. All do a "substitution", which is "uniform" in terms of the interface to the client:
+  //    x.map(f)
+  // 2. but handle the specificities for their actual types under-the-hood
+  //    Option: only substitutes if prior type is Some(_)
+  //    List: substitutes all elements
+  //    Either: only substitutes the right-hand side expression
+  //    etc.
+  "idMonad" should "flatMap be equivalent to get/set" in {
+    forAll { (a: Int, b: Int) =>
+      val m = Monad.Instances.idMonad
+      import m._
+      val modified = for { x <- m.unit(a); y <- m.unit(b) } yield { x + y }
+      modified.value shouldEqual a + b
+    }
   }
 
   implicit def arbId[A](implicit arb: Arbitrary[A]): Arbitrary[Id[A]] = Arbitrary(arb.arbitrary.map(Id(_)))
