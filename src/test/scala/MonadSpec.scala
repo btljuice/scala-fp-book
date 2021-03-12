@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers.exist.and
 import org.scalatest.matchers.should._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfpbook.ch11.Monad.Instances.Id
+import sfpbook.ch6.State
 
 class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   "optionMonad" should "replicateM generate some" in {
@@ -79,6 +80,16 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
   }
 
   implicit def arbId[A](implicit arb: Arbitrary[A]): Arbitrary[Id[A]] = Arbitrary(arb.arbitrary.map(Id(_)))
+  implicit def arbIntState[A](implicit arb: Arbitrary[Int => (Int, A)]): Arbitrary[State[Int, A]] = Arbitrary(arb.arbitrary.map(f => State[Int, A](f)))
+
+  "stateMonad" should "identity return itself" in {
+    val m = Monad.Instances.stateMonad[Int]
+    forAll { (s: String, t: Int, f: String => State[Int, Double]) =>
+      import m._
+      m.unit[String](s).flatMap[Double](f)(t) shouldEqual f(s)
+      f(s).flatMap(d => m.unit(d))(t) shouldEqual f(s)
+    }
+  }
 
   MonadLaw.test[Option, Int, String, Double, Char]("optionMonad", Monad.Instances.optionMonad)
   MonadLaw.test[List, Int, String, Double, Char]("listMonad", Monad.Instances.listMonad)

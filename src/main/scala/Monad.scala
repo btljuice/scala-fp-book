@@ -71,10 +71,9 @@ object Monad {
     }
 
     def stateMonad[T] = {
-      type S[A] = State[T, A]
-      new Monad[S] {
-        def unit[A](a: => A) = State.value(a)
-        def flatMap[A, B](m: S[A])(f: A => S[B]): S[B] = m flatMap f
+      new Monad[({type f[x] = State[T, x]})#f] {
+        override def unit[A](a: => A): State[T, A] = State.value(a)
+        override def flatMap[A, B](m: State[T, A])(f: A => State[T, B]): State[T, B] = m flatMap f
       }
     }
 

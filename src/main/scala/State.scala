@@ -10,6 +10,10 @@ case class State[T, +A](run: T => (T, A)) {
   }
   final def map2[B, C](sb: => S[B])(f: (A, B) => C): S[C] =
     for { a <- this ; b <- sb } yield { f(a, b) }
+
+  final def get: State[T, T] = State.get
+  final def set[S](s: S): State[S, Unit] = State.set(s)
+  final def modify(f: T => T): State[T, Unit] = State.modify(f)
 }
 object State {
   implicit def state[T, A](f: T => (T, A)): State[T, A] = State(f)
