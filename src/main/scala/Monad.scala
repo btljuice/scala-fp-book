@@ -15,6 +15,26 @@ import sfpbook.ch8.Test.Gen
  *     3. unit, map, join
  * @note If the interface was to allow the choice of the primitive set, I would do it through a distinct types, to not
  *       allow for any ambiguity.
+ *
+ * @note
+ *    - flatMap is the first combinator that can go from `F[F[A]]` to `F[A]`
+ *    - It's also the first combinator that provides a way to define a new F[B] dependent of the result of A. (e.g.
+ *      build F[B] from the result of A). You can't do that w/ map or map2.
+ *    - Priorhand, (w/ Functor or Applicative), it's only possible to go from F[A] => F[B] of F[A] => `F[F[B]]` but not
+ *     `F[F[A]]` => F[B]<br>
+ *    - "With Applicative, the structure of our computation is fixed." - FP with scala
+ *    - "With Monad, the results of previous computations may influence what computations to run next." - FP with scala
+ *
+ * In short (TL;DR):<br>
+ * 1. Functor.unit is the basis to start <i>creating</i> a F[_]<br>
+ * 2. Functor.map provides a way to <i>modify</i> A within F[A], but not changing F<br>
+ * 3. Applicative.map2 provides a way to <i>combine</i> multiple independent F[A], F[B], ... to a F[C]<br>
+ * 4. flatMap provides a way to build F[B] <i>dependent</i> from a prior F[A].<br>
+ *    Also provides way of <i>collapsing</i> `F[F[F[...[A]]]]` to F[A]
+ *
+ * Type constructors like: Par, Option, List, Parser, Gen are often call "effects".
+ * We sometimes use the word "monadic effects", "applicative effects".
+ * "effects" is used in contrast to "side-effects", because the latter violates referential transparencies.
  */
 trait Monad[F[_]] extends Applicative[F] { self =>
   override def unit[A](a: => A): F[A]
