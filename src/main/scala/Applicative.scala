@@ -3,19 +3,21 @@ package sfpbook.ch12
 import sfpbook.ch11.Functor
 
 /**
- * All Applicative are Functor, because they can implement [[map]]. Primitives to implement, either:<br>
- * 1. [[unit]], [[map2]]<br>
- * 2. [[unit]], [[apply]]
- * @todo This definition allows to select the primitive set. I'd rather have this better typed where one would select
- *       to implement either Applicative1 or Applicative2, well defining which set of primitive was chosen.
+ * All Applicative are Functor, because they can implement [[map]].
+ * Primitives sets are:<br>
+ * <b>1. [[unit]], [[map2]] (selected) </b><br>
+ * 2. [[unit]], [[apply]]<br>
+ * @note If the interface was to allow the choice of the primitive set, I would do it through a distinct types, to not
+ *       allow for any ambiguity.
  */
 trait Applicative[F[_]] extends Functor[F] {
-  // Primitives to implement.
+  //// Primitives
   def unit[A](a: => A): F[A]
-  def map2[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C] = map2c(fa, fb)(f.curried)
-  def apply[A, B](ff: F[A => B])(fa: F[A]): F[B] = map2(ff, fa) { _(_) }
+  def map2[A, B, C](fa: F[A], fb: F[B])(f: (A, B) => C): F[C]
 
   def map[A, B](fa: F[A])(f: A => B): F[B] = map2(fa, unit(())) { (a, _) => f(a) } // Not final to allow Monad to override
+
+  final def apply[A, B](ff: F[A => B])(fa: F[A]): F[B] = map2(ff, fa) { _(_) }
 
   final def map3[A, B, C, D](a: F[A], b: F[B], c: F[C])(f: (A, B, C) => D): F[D] = map3c(a, b, c)(f.curried)
   final def map4[A, B, C, D, E](a: F[A], b: F[B], c: F[C], d: F[D])(f: (A, B, C, D) => E): F[E] = map4c(a, b, c, d)(f.curried)

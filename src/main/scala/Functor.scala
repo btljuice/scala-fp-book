@@ -3,6 +3,7 @@ package sfpbook.ch11
 /** Requirements:
  * 1. map(x)(identity) == x */
 trait Functor[F[_]] { self =>
+  // Primitives
   def map[A, B](fa: F[A])(f: A => B): F[B]
 
   final def distribute[A, B](f: F[(A, B)]): (F[A], F[B]) = ( map(f)(_._1) , map(f)(_._2) )
