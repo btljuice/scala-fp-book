@@ -15,19 +15,15 @@ trait Monad[F[_]] extends Functor[F] { self =>
 
   final def join[A](mma: F[F[A]]): F[A] = flatMap(mma)(identity)
   final def sequence[A](l: List[F[A]]): F[List[A]] = traverse(l)(identity)
-  final def traverse[A,B](l: List[A])(f : A => F[B]): F[List[B]] = l match {
-    case Nil => unit(Nil)
-    case h :: t => map2(f(h), traverse(t)(f)) { _ :: _ }
-  }
-  final def replicateM[A](n: Int, m: F[A]): F[List[A]] = if (n <= 0) unit(Nil) else map2(m, replicateM(n-1, m)) { _ :: _ }
+  final def traverse[A,B](l: List[A])(f : A => F[B]): F[List[B]] =
+    l.foldRight(unit(List.empty[B])) { (a, acc) => map2(f(a), acc) { _ :: _ } }
+
+  final def replicateM[A](n: Int, m: F[A]): F[List[A]] =
+    (1 to n).foldLeft(unit(List.empty[A])) { (acc, _) => map2(m, acc) { _ :: _ } }
+
   final def product[A, B](ma: F[A], mb: F[B]): F[(A, B)] = map2(ma, mb){ (_, _) }
-  final def filterM[A](l: List[A])(f: A => F[Boolean]): F[List[A]] = {
-    def fWithA(a: A): F[(A, Boolean)] = map(f(a)) { (a, _) }
-    l match {
-      case Nil => unit(Nil)
-      case h :: t => map2(fWithA(h), filterM(t)(f)) { case ((a, p), l) => if (p) a :: l else l }
-    }
-  }
+  final def filterM[A](l: List[A])(f: A => F[Boolean]): F[List[A]] =
+    l.foldRight(unit(List.empty[A])) { (a, acc) => map2(f(a), acc) { (p, l) => if(p) a :: l else l } }
   final def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = a => flatMap(f(a))(g)
 
   ///// Primitives alternatives:
