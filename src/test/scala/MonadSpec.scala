@@ -85,9 +85,21 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
   "stateMonad" should "identity return itself" in {
     val m = Monad.Instances.stateMonad[Int]
     forAll { (s: String, t: Int, f: String => State[Int, Double]) =>
-      import m._
-      m.unit[String](s).flatMap[Double](f)(t) shouldEqual f(s)
-      f(s).flatMap(d => m.unit(d))(t) shouldEqual f(s)
+      m.compose((x: String) => m.unit(x), f)(s)(t) shouldEqual f(s)(t)
+      m.compose(f, (x: Double) => m.unit(x))(s)(t) shouldEqual f(s)(t)
+    }
+  }
+  it should "be associative" in {
+    val m = Monad.Instances.stateMonad[Int]
+    forAll { (s: String, t: Int, f: String => State[Int, Double], g: Double => State[Int, Char], h: Char => State[Int, BigDecimal]) =>
+      m.compose(f, m.compose(g, h))(s)(t) shouldEqual m.compose(m.compose(f, g), h)(s)(t)
+    }
+  }
+  it should "map should not modify state" in {
+    val m = Monad.Instances.stateMonad[Int]
+    forAll { (t0: Int, t1: Int, f: Unit => Double) =>
+      State.set(t1).flatMap(u => m.unit(f(u)))(t0) shouldEqual (t1, f(()))
+      State.unit[Int].flatMap(u => m.unit(f(u))).get(t0) shouldEqual (t0, t0)
     }
   }
 
