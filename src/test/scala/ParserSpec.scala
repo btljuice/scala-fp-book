@@ -1,13 +1,10 @@
 package sfpbook.ch9
 
 import org.scalacheck.Gen
-import org.scalacheck.Prop
-import org.scalacheck.Prop.propBoolean
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.matchers.should.Matchers.exist.and
-import org.scalatest.matchers.should._
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scala.io.Source.fromResource
 
 class ParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   def nonNullChar(s: String*) = s.forall(_.forall(_ != '\0'))
@@ -80,6 +77,37 @@ class ParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks
       p.run(p.noop)(s) shouldEqual Right(s)
     }
   }
+
+  "Example dateAndTemperatureParser" should "parse dates ans temperature" in {
+    val dateAndTemperatureParser: SimpleParser[(Long, Long, Long, Long)] = {
+      import p._
+      def longRange(min: Long, max: Long): SimpleParser[Long] = p.long.flatMap { l =>
+        if (min <= l && l <= max) p.succeed(l)
+        else label(s"Long=$l is outside of [$min, $max]")(alwaysFail)
+      }
+
+      val date = (longRange(1, 31) ** '/' ** longRange(1, 12) ** '/' ** longRange(2000, 3000))
+        .map { case ((((d, _), m), _), y) => (d, m, y) }
+
+      separated3(spaces)(date, ',', p.long).map { case ((d, m, y), _, t) => (d, m, y, t) }
+    }
+    val file = fromResource("DateAndTemperature.txt").getLines.toList
+    val result1 = file
+      .map(s => dateAndTemperatureParser.run(Location(s)))
+    val result2 = result1
+      .collect { case SimpleParser.ParseSuccess((d, m, y, t), _) => (d, m, y, t) }
+    val expected = List(
+      (1, 1, 2010, 25),
+      (2, 1, 2010, 28),
+      (3, 1, 2010, 42),
+      (4, 1, 2010, 53),
+      (5, 1, 2010, 45),
+      (6, 1, 2010, 35),
+    )
+
+    result2 shouldEqual expected
+  }
+
 
   object LawsParser {
     import p._
