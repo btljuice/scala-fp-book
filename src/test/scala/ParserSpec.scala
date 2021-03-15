@@ -60,9 +60,9 @@ class ParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks
     forAll { (s1: String, n: Int) => whenever(0 <= n && n <= 10) {
       import p._
       val pattern = string(s1).exactly(n)
-      val pattern1 = string(s1).exactly(n + 1) // 1 .. 11
+      val patternOneTooMany = string(s1).exactly(n + 1) //
       p.run(pattern)(s1 * n) shouldEqual Right(List.fill(n)(s1))
-      p.run(pattern1)(s1 * n) shouldBe a [Left[_, _]]
+      p.run(patternOneTooMany)(s1 * n) shouldBe a [Left[_, _]]
     } }
   }
   "succeed" should "always return value" in {
