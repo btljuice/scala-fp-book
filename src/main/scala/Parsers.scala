@@ -87,7 +87,7 @@ trait Parsers[ParseError, Parser[+_]] { self =>
     require(to.forall(_ >= from), s"invalid range: to($to) must be <= from($from)")
     if (from > 0) fill(from)(p) ** many(p, 0, to.map(_-from)) map { case (l1, l2) => l1 ::: l2 }
     else if (to.exists(_ <= 0)) succeed(Nil)
-    else many(p, 1, to.map(_-1)) | succeed(Nil)
+    else attempt(many(p, 1, to)) | succeed(Nil)
   }
 
   // Operators for parser's expressiveness

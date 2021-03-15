@@ -33,6 +33,14 @@ class ParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks
       p.run(s1)(s1 + s2) shouldEqual Right(s1)
     } }
   }
+  "spaces" should "succeed at parsing all strings" in {
+    forAll { (i: Int) => whenever (0 <= i && i <= 100) {
+      import p._
+      val input = List.fill(i)(' ').mkString
+      p.run(spaces)(input) shouldBe a [Right[_,_]]
+    }}
+
+  }
   "| operator" should "parse either string" in {
     forAll { (s1: String, s2: String, s3: String) => whenever(s1 != s3 && s2 != s3 && s1.nonEmpty && s2.nonEmpty) {
       import p._
