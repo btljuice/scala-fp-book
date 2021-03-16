@@ -9,14 +9,26 @@ import sfpbook.ch11.Monad.Instances.Id
 
 class FunctorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   implicit def arbId[A](implicit arbA: Arbitrary[A]): Arbitrary[Id[A]] = Arbitrary(arbA.arbitrary.map(Id(_)))
-  FunctorLaw.test[Option, Int, String, Double, Char]("optionMonad", Monad.Instances.optionMonad)
-  FunctorLaw.test[List, Int, String, Double, Char]("listMonad", Monad.Instances.listMonad)
-  FunctorLaw.test[Stream, Int, String, Double, Char]("streamMonad", Monad.Instances.streamMonad)
-  FunctorLaw.test[Id, Int, String, Double, Char]("idMonad", Monad.Instances.idMonad)
+  FunctorLaw.test[Option, Int, String, Double, BigDecimal]("optionMonad", Monad.Instances.optionMonad)
+  FunctorLaw.test[List, Int, String, Double, BigDecimal]("listMonad", Monad.Instances.listMonad)
+  FunctorLaw.test[Stream, Int, String, Double, BigDecimal]("streamMonad", Monad.Instances.streamMonad)
+  FunctorLaw.test[Id, Int, String, Double, BigDecimal]("idMonad", Monad.Instances.idMonad)
 
   object FunctorLaw {
-    def test[F[_], A, B, C, D](label: String, m: Functor[F])(implicit arbA: Arbitrary[F[A]]) = {
-      label + "functor law" should "map + identity return itself" in { forAll { fa: F[A] => m.map(fa)(identity) shouldEqual fa } }
+    def test[F[_], A, B, C, D](label: String, m: Functor[F])(implicit
+      arbA: Arbitrary[F[A]],
+      arbF: Arbitrary[A => B],
+      arbG: Arbitrary[B => C],
+    ) = {
+      import m._
+      label + " functor law" should "map + identity return itself" in {
+        forAll { fa: F[A] => fa.map(identity) shouldEqual fa }
+      }
+      it should "be associative" in {
+        forAll { (fa: F[A], f: A => B, g: B => C) =>
+          fa.map(f).map(g) shouldEqual fa.map(g compose f)
+        }
+      }
     }
   }
 }

@@ -42,4 +42,6 @@ class ApplicativeSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     }
     validWebForm("", "1980-09-05", "12345") shouldEqual Failure("Name cannot be empty", Vector("Phone Number must be 10 digits"))
   }
+
+  object ApplicativeLaw {}
 }
