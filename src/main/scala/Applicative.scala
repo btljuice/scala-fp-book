@@ -35,3 +35,23 @@ trait Applicative[F[_]] extends Functor[F] {
   // Primitive alternative (unit, apply)
   private[this] def map2FromApply[A, B, C](a: F[A], b: F[B])(f: (A, B) => C): F[C] = apply(apply(unit(f.curried))(a))(b)
 }
+
+object Applicative {
+  object Instances {
+    val streamZipApplicative = new Applicative[Stream] {
+      def unit[A](a: => A) = Stream.continually(a)
+      def map2[A, B, C](fa: Stream[A], fb: Stream[B])(f: (A, B) => C) = fa zip fb map f.tupled
+    }
+
+    def validationApplicative[E] = new Applicative[({type a[x] = Validation[E, x]})#a] {
+      import Validation._
+      def unit[A](a: => A) = Success(a)
+      def map2[A, B, C](fa: Validation[E, A], fb: Validation[E, B])(f: (A, B) => C) = (fa, fb) match {
+          case (Success(a), Success(b)) => Success(f(a,b))
+          case (Failure(ha, ta), Failure(hb, tb)) => Failure(ha, ta ++: hb +: tb)
+          case (f: Failure[E], _) => f
+          case (_, f: Failure[E]) => f
+        }
+    }
+  }
+}

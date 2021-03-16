@@ -81,7 +81,7 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
 
   implicit def arbId[A](implicit arb: Arbitrary[A]): Arbitrary[Id[A]] = Arbitrary(arb.arbitrary.map(Id(_)))
   implicit def arbIntState[A](implicit arb: Arbitrary[Int => (Int, A)]): Arbitrary[State[Int, A]] = Arbitrary(arb.arbitrary.map(f => State[Int, A](f)))
-
+  // TODO: Implement a MonadLaw.testFnc to factor this out and be able to test on all function like types
   "stateMonad" should "identity return itself" in {
     val m = Monad.Instances.stateMonad[Int]
     forAll { (s: String, t: Int, f: String => State[Int, Double]) =>
@@ -107,6 +107,7 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
   MonadLaw.test[List, Int, String, Double, Char]("listMonad", Monad.Instances.listMonad)
   MonadLaw.test[Stream, Int, String, Double, Char]("streamMonad", Monad.Instances.streamMonad)
   MonadLaw.test[Id, Int, String, Double, Char]("idMonad", Monad.Instances.idMonad)
+  MonadLaw.test[({type f[x] = Either[String, x]})#f, Int, String, Double, Char]("eitherMonad", Monad.Instances.eitherMonad[String])
 
   object MonadLaw {
     def test[F[_], A, B, C, D](label: String, m: Monad[F])(implicit

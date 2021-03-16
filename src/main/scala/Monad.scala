@@ -23,7 +23,7 @@ import sfpbook.ch8.Test.Gen
  *    - Priorhand, (w/ Functor or Applicative), it's only possible to go from F[A] => F[B] of F[A] => `F[F[B]]` but not
  *     `F[F[A]]` => F[B]<br>
  *    - "With Applicative, the structure of our computation is fixed." - FP with scala
- *    - "With Monad, the results of previous computations may influence what computations to run next." - FP with scala
+ *    - "With Monad, the results of previous computations may influence what computations to run next." - FP in scala
  *
  * In short (TL;DR):<br>
  * 1. Functor.unit is the basis to start <i>creating</i> a F[_]<br>
@@ -35,6 +35,12 @@ import sfpbook.ch8.Test.Gen
  * Type constructors like: Par, Option, List, Parser, Gen are often call "effects".
  * We sometimes use the word "monadic effects", "applicative effects".
  * "effects" is used in contrast to "side-effects", because the latter violates referential transparencies.
+ *
+ * " Applicative computations have fixed structure and simply sequence effects whereas monadic computations may choose
+ *   structure dynamically, based on previous effects." - FP in scala
+ * " Example:
+ *   - A context-sensitive grammar can be implemented by a monadic parser.
+ *   - An applicative parser can only implement a context-free grammar." - FP in scala
  */
 trait Monad[F[_]] extends Applicative[F] { self =>
   override def unit[A](a: => A): F[A]
@@ -84,6 +90,10 @@ object Monad {
     val listMonad = new Monad[List] {
       override def unit[A](a: => A) = a :: Nil
       override def flatMap[A, B](m: List[A])(f: A => List[B]) =  m flatMap f
+    }
+    def eitherMonad[E] = new Monad[({type f[x] = Either[E, x]})#f] {
+      override def unit[A](a: => A): Either[E, A] = Right(a)
+      override def flatMap[A, B](m: Either[E, A])(f: A => Either[E, B]): Either[E, B] = m flatMap f
     }
 
     def stateMonad[T] = {
