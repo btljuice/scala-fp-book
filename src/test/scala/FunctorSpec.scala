@@ -1,21 +1,46 @@
 package sfpbook.ch11
 
 import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import sfpbook.ch11.Monad.Instances.Id
+import sfpbook.ch12.Applicative
+import sfpbook.ch12.Validation
 // import sfpbook.ArbitraryDefinitions._ // TODO: Figure out why compilation fails w/ this straight import
 
 class FunctorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   implicit def arbId[A](implicit arbA: Arbitrary[A]): Arbitrary[Id[A]] = Arbitrary(arbA.arbitrary.map(Id(_)))
-  FunctorLaw.test[Option, Int, String, Double, BigDecimal]("optionMonad", Monad.Instances.optionMonad)
-  FunctorLaw.test[List, Int, String, Double, BigDecimal]("listMonad", Monad.Instances.listMonad)
-  FunctorLaw.test[Stream, Int, String, Double, BigDecimal]("streamMonad", Monad.Instances.streamMonad)
-  FunctorLaw.test[Id, Int, String, Double, BigDecimal]("idMonad", Monad.Instances.idMonad)
+  implicit def arbValidation[A](implicit arbA: Arbitrary[A]): Arbitrary[Validation[String, A]] =
+    Arbitrary(Gen.oneOf(true, false).flatMap {
+      case true => arbA.arbitrary.map(Validation.Success(_))
+      case false => Gen.const(Validation.Failure("some error"))
+    })
+
+
+  def testLaws[F[_]](label: String, m: Functor[F])(implicit
+    arbA: Arbitrary[F[Int]],
+    arbF: Arbitrary[Int => String],
+    arbG: Arbitrary[String => Double],
+  ) = FunctorLaw.test[F, Int, String, Double](label, m)
+
+  // functor laws
+  testLaws("listFunctor", Functor.Instances.listFunctor)
+  testLaws("optionFunctor", Functor.Instances.optionFunctor)
+
+  // applicative laws
+  testLaws("streamZipApplicative", Applicative.Instances.streamZipApplicative)
+//  testLaws("validationApplicative", Applicative.Instances.validationApplicative[String])
+
+  // monad laws
+  testLaws("optionMonad", Monad.Instances.optionMonad)
+  testLaws("listMonad", Monad.Instances.listMonad)
+  testLaws("streamMonad", Monad.Instances.streamMonad)
+  testLaws("idMonad", Monad.Instances.idMonad)
 
   object FunctorLaw {
-    def test[F[_], A, B, C, D](label: String, m: Functor[F])(implicit
+    def test[F[_], A, B, C](label: String, m: Functor[F])(implicit
       arbA: Arbitrary[F[A]],
       arbF: Arbitrary[A => B],
       arbG: Arbitrary[B => C],

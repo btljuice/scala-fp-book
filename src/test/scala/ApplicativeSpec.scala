@@ -3,12 +3,24 @@ package sfpbook.ch12
 import java.text.ParseException
 import java.text.SimpleDateFormat
 import java.util.Date
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.util.Try
+import sfpbook.ch11.Monad
+import sfpbook.ch11.Monad.Instances.Id
 
 class ApplicativeSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
+  // TODO Move this into ArbitraryDefinitions
+  implicit def arbId[A](implicit arbA: Arbitrary[A]): Arbitrary[Id[A]] = Arbitrary(arbA.arbitrary.map(Id(_)))
+  implicit def arbValidation[A](implicit arbA: Arbitrary[A]): Arbitrary[Validation[String, A]] =
+    Arbitrary(Gen.oneOf(true, false).flatMap {
+      case true => arbA.arbitrary.map(Validation.Success(_))
+      case false => Gen.const(Validation.Failure("some error"))
+    })
+
   "streamZipApplicative" should "sequence makes all zip" in {
     val sa = Stream(1, 2, 3, 4, 5)
     val sb = Stream(-1, -2, -3, -4, -5, -6)
@@ -43,5 +55,48 @@ class ApplicativeSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     validWebForm("", "1980-09-05", "12345") shouldEqual Failure("Name cannot be empty", Vector("Phone Number must be 10 digits"))
   }
 
-  object ApplicativeLaw {}
+  testLaws("streamZipApplicative", Applicative.Instances.streamZipApplicative)
+//  testLaws("validationApplicative", Applicative.Instances.validationApplicative[String])
+
+  // monad laws
+  testLaws("optionMonad", Monad.Instances.optionMonad)
+  testLaws("listMonad", Monad.Instances.listMonad)
+  testLaws("streamMonad", Monad.Instances.streamMonad)
+  testLaws("idMonad", Monad.Instances.idMonad)
+
+  def testLaws[F[_]](label: String, m: Applicative[F])(implicit
+    arbA: Arbitrary[F[Int]],
+    arbB: Arbitrary[F[String]],
+    arbC: Arbitrary[F[Double]],
+  ) = ApplicativeLaw.test[F, Int, String, Double, BigDecimal](label, m)
+
+  object ApplicativeLaw {
+    def test[F[_], A, B, C, D](label: String, a: Applicative[F])(implicit
+      arbA: Arbitrary[F[A]],
+      arbB: Arbitrary[F[B]],
+      arbC: Arbitrary[F[C]],
+      arbF: Arbitrary[A => C],
+      arbG: Arbitrary[B => D],
+    ) = {
+      import a._
+      label + " applicative law" should "map2 + unit should return itself" in {
+        forAll { fa: F[A] =>
+          map2(fa, unit(()))((a, _) => a) shouldEqual fa
+          map2(unit(()), fa)((_, a) => a) shouldEqual fa
+        }
+      }
+      it should "map3 be associative" in {
+        def assoc[A, B, C](t: ((A, B), C)) = t match { case ((a, b), c) => (a, (b, c)) }
+        forAll { (fa: F[A], fb: F[B], fc: F[C]) =>
+          product(fa, product(fb, fc)) shouldEqual product(product(fa, fb), fc).map(assoc)
+        }
+      }
+      // Applying f and g before OR after product creation are equivalent
+      it should "respect naturality of product" in {
+        forAll { (fa: F[A], fb: F[B], f: A => C, g: B => D) =>
+          map2(fa, fb) { (a, b) => (f(a), g(b)) } shouldEqual product(fa.map(f), fb.map(g))
+        }
+      }
+    }
+  }
 }
