@@ -25,6 +25,7 @@ trait Applicative[F[_]] extends Functor[F] {
 
   final def traverse[A, B](l: List[A])(f: A => F[B]): F[List[B]] = l.foldRight(unit(List.empty[B])) { (a, acc) => map2(f(a), acc) { _ :: _ } }
   final def sequence[A](l: List[F[A]]): F[List[A]] = traverse(l)(identity)
+  final def sequenceMap[K, V](m: Map[K, F[V]]): F[Map[K, V]] = map( sequence(m.map { case (k, fv) => map(fv)(k -> _) }.toList) )(_.toMap)
   final def replicateM[A](n: Int, fa: F[A]): F[List[A]] = (1 to n).foldLeft(unit(List.empty[A])) { (acc, _) => map2(fa, acc) { _ :: _} }
   final def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] = map2(fa, fb) { (_ , _) }
   final def filterM[A](l: List[A])(f: A => F[Boolean]): F[List[A]] = l.foldRight(unit(List.empty[A])) { (a, acc) => map2(f(a), acc) { (p, l) => if(p) a :: l else l } }
