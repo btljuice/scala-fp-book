@@ -14,3 +14,6 @@ case class Leaf[T](value: T) extends Tree[T] {
 case class Branch[T](left: Tree[T], right: Tree[T]) extends Tree[T] {
   override def fold[A](f: T => A)(m: (A, A) => A) = m(left.fold(f)(m), right.fold(f)(m))
 }
+
+
+case class TreeList[+A](head: A, tail: scala.collection.immutable.List[TreeList[A]])
