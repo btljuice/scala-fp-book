@@ -129,13 +129,13 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
         }
       }
       it should "identity return itself" in {
-        forAll { fa: F[A] => fa.flatMap(m.unit) shouldEqual fa }
+        forAll { fa: F[A] => fa.flatMap(x => m.unit(x)) shouldEqual fa }
         forAll { (a: A, f: A => F[B]) => m.unit(a).flatMap(f) shouldEqual f(a) }
       }
       it should "identity return itself 2" in {
         forAll { (a: A, f: A => F[B]) =>
-          m.compose[A, A, B](m.unit, f)(a) shouldEqual f(a)
-          m.compose[A, B, B](f, m.unit)(a) shouldEqual f(a)
+          m.compose[A, A, B](x => m.unit(x), f)(a) shouldEqual f(a)
+          m.compose[A, B, B](f, x => m.unit(x))(a) shouldEqual f(a)
         }
       }
     }
