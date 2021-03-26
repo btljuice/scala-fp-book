@@ -129,13 +129,13 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
         }
       }
       it should "identity return itself" in {
-        forAll { fa: F[A] => fa.flatMap(a => m.unit(a)) shouldEqual fa }
+        forAll { fa: F[A] => fa.flatMap(m.unit) shouldEqual fa }
         forAll { (a: A, f: A => F[B]) => m.unit(a).flatMap(f) shouldEqual f(a) }
       }
       it should "identity return itself 2" in {
         forAll { (a: A, f: A => F[B]) =>
-          m.compose[A, A, B](x => m.unit(x), f)(a) shouldEqual f(a)
-          m.compose[A, B, B](f, x => m.unit(x))(a) shouldEqual f(a)
+          m.compose[A, A, B](m.unit, f)(a) shouldEqual f(a)
+          m.compose[A, B, B](f, m.unit)(a) shouldEqual f(a)
         }
       }
     }
@@ -156,3 +156,44 @@ class MonadSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks 
 //
 // If f is identity and a == monad then we have the same associativity
 //
+
+// Ex. 12.7
+// Given that you have monad. show that applicative laws work as well
+// Applicative laws to demonstrate:
+//   u = unit(())
+//   fst(a,b) = a
+//   snd(a,b) = b
+//   tup(a,b) = (a, b)
+//   x * y = x.map2(y)(tup)
+//   1. fa.map2(u)(fst) == fa ; u.map2(fa)(snd) == fa
+//   2. fa * (fb * fc) == (fa * fb) * fc map assoc
+//   3. fa.map2(fb)((a, b) => (f(a), g(b))) == fa.map(f) * fb.map(g)
+//
+// Monad laws:
+//   1. unit(a).flatMap(f) == f(a) ; f(a).flatMap(unit) == f(a)
+//      fa.map(identity) == fa ;
+//   2. fa.flatMap(f).flatMap(g) shouldEqual fa.flatMap(a => f(a).flatMap(g))
+//
+// map2 expressed as flatMap and unit:
+//   fa.map2(fb)(f) == fa.flatMap(a => fb.map(b => f(a, b)))
+//
+// ANSWER:
+//   1. fa.map2(u)(fst)
+//      fa.flatMap(a => u.map(b => fst(a, b)))
+//      fa.flatMap(a => unit(()).map(_ => a))
+//                      unit(()).flatMap(unit(a))
+//      fa.flatMap(unit)
+//      fa
+//
+//   2. fa * (fb * fc)
+//      fa.map2(fb * fc)(tup)
+//      fa.map2(fbc)(tup)
+//      fa.flatMap(a => fbc.map(bc => tup(a, bc)))
+//      fa.flatMap(a => fbc.flatMap(bc => unit . tup(a, bc)))
+//      fa.flatMap(_ => fbc)                                   .flatMap(bc => unit . tub(a, bc)))
+//      fa.flatMap(a => (fb * fc))                             .
+//      fa.flatMap(a => fb.map2(fc)(tup))                      .
+//      fa.flatMap(a => fb.flatMap(b => fc.map(c => tup(b, c))).
+//      fa.flatMap(_ => fb).flatMap(b => fc.map(c => tub(b, c))).
+///     TODO FINISH
+///   3. FINISH

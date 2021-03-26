@@ -70,6 +70,16 @@ trait Monad[F[_]] extends Applicative[F] { self =>
 }
 
 object Monad {
+  // Ex. 12.11
+//  def compose[F[_], G[_]](f: Monad[F], g: Monad[G]): Monad[({type h[x] = F[G[x]]})#h] =
+//    new Monad[({type h[x] = F[G[x]]})#h] {
+//      override def unit[A](a: => A): F[G[A]] = f.unit(g.unit(a))
+//      override def flatMap[A, B](m: F[G[A]])(h: A => F[G[B]]): F[G[B]] =
+//        f.flatMap(m) {
+//          ga => g.flatMap(ga)(h) // Does not work because flatMap here expects a G[_] but not a F[_]
+//        }
+//    }
+
   object Instances {
     val genMonad = new Monad[Gen] {
       override def unit[A](a: => A) = Gen.unit(a)
