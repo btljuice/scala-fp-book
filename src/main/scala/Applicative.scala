@@ -1,6 +1,7 @@
 package sfpbook.ch12
 
 import scala.language.higherKinds
+import sfpbook.ch10.Monoid
 import sfpbook.ch11.Functor
 
 /**
@@ -54,6 +55,12 @@ object Applicative {
         f.map2(fa, fb)((ga, gb) => g.map2(ga, gb)(h))
     }
 
+  // Given Monoid[M], we can create/cast it to an applicative w/ the Const type
+  type Const[M, B] = M
+  def monoidApplicative[M](m: Monoid[M]) = new Applicative[({type f[x] = Const[M, x]})#f] {
+    override def unit[A](a: => A): Const[M, A] = m.zero
+    override def map2[A, B, C](fa: Const[M, A], fb: Const[M, B])(f: (A, B) => C): Const[M, C] = m.op(fa, fb)
+  }
 
   object Instances {
     val streamZipApplicative = new Applicative[Stream] {
@@ -70,6 +77,19 @@ object Applicative {
           case (f: Failure[E], _) => f
           case (_, f: Failure[E]) => f
         }
+    }
+    val optionApplicative = new Applicative[Option] {
+      override def unit[A](a: => A): Option[A] = Some(a)
+      override def map2[A, B, C](fa: Option[A], fb: Option[B])(f: (A, B) => C): Option[C] = (fa, fb) match {
+        case (Some(a), Some(b)) => Some(f(a, b))
+        case _ => None
+      }
+    }
+
+    case class Id[A](value: A)
+    val idApplicative = new Applicative[Id] {
+      override def unit[A](a: => A): Id[A] = Id(a)
+      override def map2[A, B, C](fa: Id[A], fb: Id[B])(f: (A, B) => C): Id[C] = Id(f(fa.value, fb.value))
     }
   }
 }
