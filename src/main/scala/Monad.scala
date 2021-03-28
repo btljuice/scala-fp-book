@@ -1,6 +1,7 @@
 package sfpbook.ch11
 
 import sfpbook.ch12.Applicative
+import sfpbook.ch12.Traverse
 import sfpbook.ch6.State
 import sfpbook.ch7.Par
 import sfpbook.ch7.Par.Par
@@ -79,6 +80,20 @@ object Monad {
 //          ga => g.flatMap(ga)(h) // Does not work because flatMap here expects a G[_] but not a F[_]
 //        }
 //    }
+
+  def composeM[F[_], G[_]](F: Monad[F], G: Monad[G], T: Traverse[G]): Monad[({type f[x] = F[G[x]]})#f] = {
+    type FG[A] = F[G[A]]
+    new Monad[FG] {
+      override def unit[A](a: => A): F[G[A]] = F.unit(G.unit(a))
+      override def flatMap[A, B](m: F[G[A]])(f: A => F[G[B]]): F[G[B]] = {
+        F.flatMap(m) { ga =>
+          val x: G[F[G[B]]] = G.map(ga) { a: A => f(a) }
+          val y: F[G[G[B]]] = T.sequence(x)(F)
+          F.map(y)(G.join)
+        }
+      }
+    }
+  }
 
   object Instances {
     val genMonad = new Monad[Gen] {

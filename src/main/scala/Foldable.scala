@@ -11,7 +11,7 @@ trait Foldable[F[_]] {
   def foldMap[A, B](as: F[A])(f: A => B)(implicit m: Monoid[B]): B
 
   final def concatenate[A](as: F[A])(implicit m: Monoid[A]): A = foldLeft(as)(m.zero)(m.op)
-  final def toList[A](as: F[A]): List[A] = foldRight(as)(List.empty[A])(_ :: _)
+  def toList[A](as: F[A]): List[A] = foldRight(as)(List.empty[A])(_ :: _)
 }
 
 object Foldable {

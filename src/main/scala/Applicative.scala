@@ -68,6 +68,11 @@ object Applicative {
       def map2[A, B, C](fa: Stream[A], fb: Stream[B])(f: (A, B) => C) = fa zip fb map f.tupled
     }
 
+    val listZipApplicative = new Applicative[List] {
+      def unit[A](a: => A) = a :: Nil
+      def map2[A, B, C](fa: List[A], fb: List[B])(f: (A, B) => C) = fa.zip(fb).map(f.tupled)
+    }
+
     def validationApplicative[E] = new Applicative[({type a[x] = Validation[E, x]})#a] {
       import Validation._
       def unit[A](a: => A) = Success(a)
