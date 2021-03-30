@@ -35,6 +35,6 @@ object Json {
       separated3(spaces)("{", keyValues, "}").map { case (_, m, _) => JObject(m) }
     }
 
-    jnull | jnumber | jstring | jboolean | jarray | jobject
+    attempt(jnull) | attempt(jnumber) | attempt(jstring) | attempt(jboolean) | attempt(jarray) | jobject
   }
 }

@@ -53,6 +53,26 @@ trait Monad[F[_]] extends Applicative[F] { self =>
   final def join[A](mma: F[F[A]]): F[A] = flatMap(mma)(identity)
   final def compose[A, B, C](f: A => F[B], g: B => F[C]): A => F[C] = a => flatMap(f(a))(g)
 
+  final def doWhile[A](a: F[A])(cond: A => F[Boolean]): F[Unit] = for {
+    a1 <- a
+    ok <- cond(a1)
+    _ <- if (ok) doWhile(a)(cond) else unit(())
+  } yield ()
+
+  final def forever[A, B](a: F[A]): F[B] = {
+    lazy val t: F[B] = forever(a)
+    a flatMap (_ => t)
+  }
+
+  final def foldM[A, B](l: Stream[A])(z: B)(f: (B, A) => F[B]): F[B] = l match {
+    case h #:: t => f(z, h).flatMap(foldM(t)(_)(f))
+    case Stream.Empty => unit(z)
+  }
+
+  final def foldM_[A, B](l: Stream[A])(z: B)(f: (B, A) => F[B]): F[Unit] = foldM(l)(z)(f).map(_ => ())
+
+  final def foreachM[A](l: Stream[A])(f: A => F[Unit]): F[Unit] = foldM_(l)(())((_, a) => f(a))
+
   implicit class MonadOps[A](m: F[A]) {
     def flatMap[B](f: A => F[B]): F[B] = self.flatMap(m)(f)
     def map[B](f: A => B): F[B] = self.map(m)(f)
