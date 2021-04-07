@@ -4,6 +4,11 @@ import scala.io.StdIn
 import sfpbook.ch10.Monoid
 import sfpbook.ch11.Monad
 
+/** Benefits of IO
+ *  - Provides clear separation from pure VS impure code
+ *  - IO computations can be manipulated as ordinary values. e.g. they can be sotred into list, combined, created
+ *       dynamically and so on.
+ *  - */
 trait IO[A] {
   def run: A
   def map[B](f: A => B): IO[B] = IO { f(run) }
@@ -21,7 +26,7 @@ object IO {
   def readLine: IO[String] = IO { StdIn.readLine }
 
   val monoid: Monoid[IO[Unit]] = new Monoid[IO[Unit]] {
-    override def op(a1: IO[Unit], a2: IO[Unit]): IO[Unit] = a1 ++ a2
+    override def op(a1: IO[Unit], a2: IO[Unit]): IO[Unit] = a1.flatMap(_ => a2)
     override def zero: IO[Unit] = empty
   }
 
