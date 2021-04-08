@@ -1,4 +1,5 @@
 package sfpbook.ch13
+import sfpbook.ch13.{TailRec => IO}
 
 import scala.annotation.tailrec
 
@@ -27,7 +28,7 @@ object PlayerExample {
   def separatedContest(p1: Player, p2: Player): Unit = println(winnerMsg(winner(p1, p2)))
 
   // Contest is now pure, as it simply returns an IO instance
-  def ioContest(p1: Player, p2: Player): IO = IO.printLine(winnerMsg(winner(p1, p2)))
+  def ioContest(p1: Player, p2: Player): IO[Unit] = IO.printLine(winnerMsg(winner(p1, p2)))
 }
 
 object TemperatureExample {
