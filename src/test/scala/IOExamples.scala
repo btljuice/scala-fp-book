@@ -40,7 +40,7 @@ object TemperatureExample {
     f <- IO.readLine
     c = farenheitToCelius(f.toDouble)
     _ <- IO.printLine(s"Celcius temperature = $c")
-  } yield ()
+  } yield c
 }
 
 object OtherExample {
