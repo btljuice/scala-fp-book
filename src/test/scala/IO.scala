@@ -1,5 +1,6 @@
 package sfpbook.ch13
 
+import scala.annotation.tailrec
 import scala.io.StdIn
 import sfpbook.ch10.Monoid
 import sfpbook.ch11.Monad
@@ -21,6 +22,25 @@ object IO {
   case class Return[A](a: A) extends IO[A]
   case class Suspend[A](resume: () => A) extends IO[A]
   case class FlatMap[A, B](io: IO[A], k: A => IO[B]) extends IO[B] // k as in Continuation
+
+  // Scala fp book p.239. FlatMap is analog to a coroutine
+  @tailrec def run[A](io: IO[A]): A = io match {
+    case Return(a) => a
+    case Suspend(resume) => resume()
+    case FlatMap(x, f) => x match {
+      case Return(a) => run(f(a))
+      case Suspend(r) => run(f(r()))
+      // ***** Neat trick! *******
+      // Uses the "IO Monad associativity law" to right associate and retrieve the first chained IO
+      // EXAMPLE: io0.flatMap(f1).flatMap(f2).flatMap(f3).
+      // 1. Is constructed as :
+      //    FlatMap(FlatMap(FlatMap(io, f1), f2), f3)
+      // 2. When run is executed, it is eventually reconstructed as
+      //    FlatMap(io0, a => FlatMap(f1(a), b => FlatMap(f2(b), f3)))
+      case FlatMap(y, g) => run( y.flatMap(b => g(b) flatMap f) )
+
+    }
+  }
 
   def apply[A](f: => A): IO[A] = Suspend(() => f)
   def unit[A](a: => A): IO[A] = IO(a)
